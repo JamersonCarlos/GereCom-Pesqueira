@@ -1,0 +1,33 @@
+name: gerecom_pesqueira
+description: GereCom Pesqueira — Gestão de Comunicação Municipal
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State management (MVC via ChangeNotifier)
+  provider: ^6.1.2
+  # HTTP client para comunicação com a API MySQL
+  dio: ^5.7.0
+  # Armazenamento do token JWT
+  shared_preferences: ^2.3.2
+  # Geração de UUID
+  uuid: ^4.4.2
+  # Formatação de datas
+  intl: ^0.19.0
+  # Ícones
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
