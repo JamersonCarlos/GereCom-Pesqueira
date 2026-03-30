@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan'); // import do middleware de logs
 const pool = require('./db/connection');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
@@ -8,6 +9,17 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Log formatado com Método HTTP, URL, Status Code e tempo de resposta
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
+
+// Interceptor extra para logar os Bodys das requisições importantes na depuração
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    console.log(`[BODY RECEIVED] na rota ${req.url}:`, JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
 
 // Rotas
 app.use('/api/auth', require('./routes/auth'));

@@ -16,6 +16,23 @@ class ServiceProvider extends ChangeNotifier {
   List<ServiceModel> get services => _services;
   bool get loading => _loading;
 
+  // Added createServiceDirectly for standalone Services without Planning
+  Future<void> createServiceDirectly(Map<String, dynamic> data) async {
+    _loading = true;
+    notifyListeners();
+    try {
+      final created = await _api.createService(data);
+      final service = ServiceModel.fromJson(created);
+      _services.insert(0, service);
+    } on DioException catch (e) {
+      debugPrint('createServiceDirectly error: ${e.message}');
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadForManager(String managerId) async {
     _loading = true;
     notifyListeners();

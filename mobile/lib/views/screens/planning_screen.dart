@@ -1,3 +1,4 @@
+import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,22 +7,62 @@ import '../../providers/planning_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../models/models.dart';
 import '../widgets/status_badge.dart';
+import '../widgets/planning_modal.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PlanningScreen extends StatelessWidget {
   const PlanningScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final plannings = context.watch<PlanningProvider>().plannings;
+    final allPlannings = context.watch<PlanningProvider>().plannings;
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser!;
 
+    final canCreate = user.role == UserRole.GESTOR ||
+        user.role == UserRole.SECRETARY ||
+        user.role == UserRole.MANAGER ||
+        user.role == UserRole.GENERAL_MANAGER;
+
+    List<PlanningModel> plannings = [];
+    if (user.role == UserRole.MANAGER ||
+        user.role == UserRole.GESTOR ||
+        user.role == UserRole.GENERAL_MANAGER) {
+      plannings = allPlannings;
+    } else if (user.role == UserRole.SECRETARY) {
+      plannings = allPlannings
+          .where((p) =>
+              p.secretaryId == user.id || p.responsibleSecretaryId == user.id)
+          .toList();
+    } else {
+      // Employees nominally don't deal with plannings, but just in case they are assigned to one as responsible
+      plannings = allPlannings
+          .where((p) => p.responsibleEmployeeIds.contains(user.id))
+          .toList();
+    }
+
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Planejamentos'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
+      floatingActionButton: canCreate
+          ? FloatingActionButton(
+              onPressed: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (_) => const PlanningModal(),
+              ),
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: plannings.isEmpty
           ? const Center(child: Text('Nenhum planejamento encontrado.'))
           : ListView.builder(
@@ -117,11 +158,44 @@ class _PlanningCard extends StatelessWidget {
               style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
             if (planning.location != null)
-              Text(
-                planning.location!.address,
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              GestureDetector(
+                onTap: () async {
+                  final loc = planning.location!;
+                  if (loc.lat != null && loc.lng != null) {
+                    final uri = Uri.parse(
+                        'https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  } else {
+                    final uri = Uri.parse(
+                        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(loc.address)}');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on,
+                          size: 14, color: Colors.blue),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          planning.location!.address,
+                          style: const TextStyle(
+                              color: Colors.blue,
+                              fontSize: 13,
+                              decoration: TextDecoration.underline),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             if (planning.urgency == UrgencyLevel.URGENT)
               const Padding(
@@ -135,7 +209,9 @@ class _PlanningCard extends StatelessWidget {
                   ),
                 ),
               ),
-            if (user.role == UserRole.MANAGER &&
+            if ((user.role == UserRole.MANAGER ||
+                    user.role == UserRole.GESTOR ||
+                    user.role == UserRole.GENERAL_MANAGER) &&
                 planning.status == ServiceStatus.PENDING) ...[
               const SizedBox(height: 12),
               Row(
@@ -162,7 +238,9 @@ class _PlanningCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (user.role == UserRole.MANAGER)
+            if ((user.role == UserRole.MANAGER ||
+                user.role == UserRole.GESTOR ||
+                user.role == UserRole.GENERAL_MANAGER))
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(

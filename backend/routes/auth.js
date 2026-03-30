@@ -41,9 +41,10 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/register
+// POST /api/auth/register (Gerentes/Gestores/Secretários criam subordinados)
 router.post('/register', auth, async (req, res) => {
-  const { username, password, name, role, managerId, function: fn } = req.body;
+  const { username, password, name, role, managerId, functionRole } = req.body;
+  
   if (!username || !password || !name)
     return res
       .status(400)
@@ -60,7 +61,7 @@ router.post('/register', auth, async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const id = uuidv4();
     await pool.query(
-      `INSERT INTO users (id, username, password, name, role, function, manager_id)
+      `INSERT INTO users (id, username, password, name, role, \`function\`, manager_id)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
@@ -68,7 +69,7 @@ router.post('/register', auth, async (req, res) => {
         hash,
         name,
         role || 'EMPLOYEE',
-        fn || null,
+        functionRole || null, // alterado de fn para functionRole como enviado pelo frontend
         managerId || null,
       ]
     );

@@ -23,7 +23,10 @@ class AuthProvider extends ChangeNotifier {
   /// Para MANAGER retorna o próprio id; para outros retorna o managerId.
   String? get managerId {
     if (_currentUser == null) return null;
-    return _currentUser!.role == UserRole.MANAGER
+    return (_currentUser!.role == UserRole.MANAGER ||
+            _currentUser!.role == UserRole.GESTOR ||
+            _currentUser!.role == UserRole.GENERAL_MANAGER ||
+            _currentUser!.role == UserRole.SECRETARY)
         ? _currentUser!.id
         : _currentUser!.managerId;
   }

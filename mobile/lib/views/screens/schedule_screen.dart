@@ -1,3 +1,4 @@
+import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -22,13 +23,32 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   Future<void> _loadUsers() async {
-    final users = await context.read<AuthProvider>().getAllUsers();
-    if (mounted) setState(() => _allUsers = users);
+    try {
+      final users = await context.read<AuthProvider>().getAllUsers();
+      if (mounted) {
+        setState(() => _allUsers = users
+            .where((u) =>
+                u.role == UserRole.GESTOR ||
+                u.role == UserRole.SECRETARY ||
+                u.role == UserRole.EMPLOYEE)
+            .toList());
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Erro ao buscar colaboradores: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   String _userName(String id) {
     try {
-      return _allUsers.firstWhere((u) => u.id == id).name;
+      return _allUsers
+          .firstWhere((u) => u.id == id)
+          .name; // O prompt exige o nome completo, o atributo "name" já traz a string exata em vez de abreviações.
     } catch (_) {
       return id;
     }
@@ -36,12 +56,28 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final shifts = context.watch<ShiftProvider>().shifts;
     final auth = context.watch<AuthProvider>();
-    final isManager = auth.currentUser?.role == UserRole.MANAGER;
+    final allShifts = context.watch<ShiftProvider>().shifts;
+    final user = auth.currentUser!;
+
+    final isManager = user.role == UserRole.MANAGER ||
+        user.role == UserRole.GESTOR ||
+        user.role == UserRole.GENERAL_MANAGER;
+
+    // IMPLEMENTAÇÃO DE REGRAS DE ACESSO "ESCALA"
+    List<ShiftModel> shifts = [];
+    if (isManager) {
+      shifts = allShifts;
+    } else {
+      // Funcionário vê apenas seus serviços atribuídos (ou secretários etc que possam estar nas escalas)
+      shifts = allShifts.where((s) => s.employeeIds.contains(user.id)).toList();
+    }
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Escalas'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
@@ -53,12 +89,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             )
           : null,
       body: shifts.isEmpty
-          ? const Center(child: Text('Nenhuma escala cadastrada.'))
+          ? const Center(child: Text('Nenhuma escala encontrada.'))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: shifts.length,
               itemBuilder: (context, i) {
-                final s = shifts[i];
+                final shift = shifts[i];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
@@ -73,7 +109,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                s.date,
+                                shift.date,
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
@@ -81,9 +117,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 ),
                               ),
                             ),
-                            if (s.startTime != null || s.endTime != null)
+                            if (shift.startTime != null ||
+                                shift.endTime != null)
                               Text(
-                                '${s.startTime ?? ''}–${s.endTime ?? ''}',
+                                '${shift.startTime ?? ''}–${shift.endTime ?? ''}',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   color: Colors.blueGrey,
@@ -93,7 +130,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               IconButton(
                                 icon: const Icon(Icons.edit_outlined, size: 20),
                                 onPressed: () =>
-                                    _showEditShiftSheet(context, s),
+                                    _showEditShiftSheet(context, shift),
                                 tooltip: 'Editar',
                               ),
                               IconButton(
@@ -102,17 +139,18 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                   size: 20,
                                   color: Colors.red,
                                 ),
-                                onPressed: () => _confirmDelete(context, s.id),
+                                onPressed: () =>
+                                    _confirmDelete(context, shift.id),
                                 tooltip: 'Excluir',
                               ),
                             ],
                           ],
                         ),
-                        if (s.observations != null)
+                        if (shift.observations != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              s.observations!,
+                              shift.observations!,
                               style: const TextStyle(
                                 color: Colors.grey,
                                 fontStyle: FontStyle.italic,
@@ -129,7 +167,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                             fontSize: 13,
                           ),
                         ),
-                        ...s.employeeIds.map(
+                        ...shift.employeeIds.map(
                           (id) => Text(
                             '· ${_userName(id)}',
                             style: const TextStyle(fontSize: 14),
@@ -283,8 +321,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     onPressed: () async {
                       if (dateCtrl.text.isEmpty) return;
                       final shiftCtrl = context.read<ShiftProvider>();
-                      final managerId =
-                          context.read<AuthProvider>().managerId!;
+                      final managerId = context.read<AuthProvider>().managerId!;
                       Navigator.pop(ctx);
                       if (existing == null) {
                         await shiftCtrl.createShift(

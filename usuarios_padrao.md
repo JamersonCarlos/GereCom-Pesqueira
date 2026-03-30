@@ -29,7 +29,7 @@ Abaixo segue um fluxo didático de como testar a jornada em sua integralidade:
    * Faça login com `gestor` / `123`. 
    * Visualize a demanda criada pela secretaria na tela "Planejamentos Pendentes".
    * APROVE o planejamento. Ao fazê-lo, a demanda transforma-se num **Serviço**.
-   * Adicione também a composição de trabalho na aba **"Escalas"**, atribuindo o colaborador.
+   * Adicione também a composição de trabalho na aba **"Escalas"**, atribuindo o colaborador.funcio
    
 3. **Execução em Campo (Colaborador)**:
    * Faça login com `funcionario` / `123`. 

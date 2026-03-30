@@ -15,6 +15,8 @@ import 'reports_screen.dart';
 import 'profile_screen.dart';
 import 'team_screen.dart';
 
+final GlobalKey<ScaffoldState> rootScaffoldKey = GlobalKey<ScaffoldState>();
+
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
 
@@ -47,9 +49,13 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<AuthProvider>();
+    final auth = context.watch<AuthProvider>();
+    final user = auth.currentUser;
     final notifCtrl = context.watch<NotificationProvider>();
     final unread = notifCtrl.unreadCount;
+
+    final name = user?.name ?? 'Usuário';
+    final role = user?.role.name ?? '';
 
     final screens = <Widget>[
       const DashboardScreen(),
@@ -63,58 +69,144 @@ class _MainScaffoldState extends State<MainScaffold> {
     ];
 
     return Scaffold(
+      key: rootScaffoldKey,
+      drawer: Drawer(
+        child: Column(
+          children: [
+            UserAccountsDrawerHeader(
+              accountName: Text(name),
+              accountEmail: Text(role),
+              currentAccountPicture: const CircleAvatar(
+                child: Icon(Icons.person, size: 40),
+              ),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard),
+              title: const Text('Dashboard'),
+              selected: _selectedIndex == 0,
+              onTap: () {
+                setState(() => _selectedIndex = 0);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text('Planejamentos'),
+              selected: _selectedIndex == 1,
+              onTap: () {
+                setState(() => _selectedIndex = 1);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.work),
+              title: const Text('Serviços'),
+              selected: _selectedIndex == 2,
+              onTap: () {
+                setState(() => _selectedIndex = 2);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.schedule),
+              title: const Text('Escalas'),
+              selected: _selectedIndex == 3,
+              onTap: () {
+                setState(() => _selectedIndex = 3);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('Relatórios'),
+              selected: _selectedIndex == 4,
+              onTap: () {
+                setState(() => _selectedIndex = 4);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.group),
+              title: const Text('Equipe'),
+              selected: _selectedIndex == 5,
+              onTap: () {
+                setState(() => _selectedIndex = 5);
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: Badge(
+                isLabelVisible: unread > 0,
+                label: Text('$unread'),
+                child: const Icon(Icons.notifications),
+              ),
+              title: const Text('Notificações'),
+              selected: _selectedIndex == 6,
+              onTap: () {
+                setState(() => _selectedIndex = 6);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Perfil'),
+              selected: _selectedIndex == 7,
+              onTap: () {
+                setState(() => _selectedIndex = 7);
+                Navigator.pop(context);
+              },
+            ),
+            const Spacer(),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Sair', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                final navigator = Navigator.of(context);
+                await auth.logout();
+                // Destrói todas as rotas ativas (ex: modais, dialogs abertos)
+                // para a navegação voltar ao "home:" ditado pelo app.dart
+                navigator.popUntil((route) => route.isFirst);
+              },
+            ),
+          ],
+        ),
+      ),
       body: screens[_selectedIndex],
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex > 5 ? _selectedIndex : _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        destinations: [
-          const NavigationDestination(
+        selectedIndex: _selectedIndex > 3 ? 0 : _selectedIndex,
+        onDestinationSelected: (i) {
+          setState(() {
+            if (i == 0) _selectedIndex = 0; // Dashboard
+            if (i == 1) _selectedIndex = 1; // Planejamentos
+            if (i == 2) _selectedIndex = 2; // Serviços
+            if (i == 3) _selectedIndex = 3; // Escalas
+          });
+        },
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          const NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Planejamentos',
           ),
-          const NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.work_outline),
             selectedIcon: Icon(Icons.work),
             label: 'Serviços',
           ),
-          const NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.schedule_outlined),
             selectedIcon: Icon(Icons.schedule),
             label: 'Escalas',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Relatórios',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.group_outlined),
-            selectedIcon: Icon(Icons.group),
-            label: 'Equipe',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: unread > 0,
-              label: Text('$unread'),
-              child: const Icon(Icons.notifications_outlined),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: unread > 0,
-              label: Text('$unread'),
-              child: const Icon(Icons.notifications),
-            ),
-            label: 'Notificações',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Perfil',
           ),
         ],
       ),

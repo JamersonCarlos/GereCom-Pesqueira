@@ -1,3 +1,4 @@
+import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,7 +28,7 @@ class DashboardScreen extends StatelessWidget {
         .length;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => rootScaffoldKey.currentState?.openDrawer()), 
         title: const Text('Dashboard'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,

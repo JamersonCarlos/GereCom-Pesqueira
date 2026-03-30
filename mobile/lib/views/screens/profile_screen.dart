@@ -1,3 +1,4 @@
+import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -77,7 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => rootScaffoldKey.currentState?.openDrawer()), 
         title: const Text('Perfil'),
         backgroundColor: primary,
         foregroundColor: Colors.white,

@@ -1,3 +1,4 @@
+import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,7 +17,7 @@ class NotificationsScreen extends StatelessWidget {
     final userId = auth.currentUser!.id;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => rootScaffoldKey.currentState?.openDrawer()), 
         title: const Text('Notificações'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,

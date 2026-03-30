@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Endereço base da API.
 /// 10.0.2.2 é o host do emulador Android apontando para localhost da máquina.
-const String _baseUrl = 'http://10.0.2.2:3000/api';
+const String _baseUrl = 'http://192.168.0.2:3000/api';
 const String _tokenKey = 'gerecom_token';
 
 class ApiService {

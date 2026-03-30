@@ -1,3 +1,4 @@
+import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,13 +26,29 @@ class _TeamScreenState extends State<TeamScreen> {
     setState(() => _loading = true);
     final auth = context.read<AuthProvider>();
     final managerId = auth.managerId;
-    if (managerId == null) return;
-    final members = await auth.getTeamMembers(managerId);
-    if (mounted) {
-      setState(() {
-        _members = members;
-        _loading = false;
-      });
+
+    if (managerId == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final members = await auth.getTeamMembers(managerId);
+      if (mounted) {
+        setState(() {
+          _members = members;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Erro ao carregar equipe: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -88,6 +105,7 @@ class _TeamScreenState extends State<TeamScreen> {
     final functionCtrl = TextEditingController();
     UserRole selectedRole = UserRole.EMPLOYEE;
     final secretaryController = TextEditingController();
+    String? selectedGestorId;
 
     showModalBottomSheet(
       context: context,
@@ -138,7 +156,13 @@ class _TeamScreenState extends State<TeamScreen> {
                   initialValue: selectedRole,
                   decoration:
                       const InputDecoration(labelText: 'Nível de Acesso'),
-                  items: UserRole.values.map((role) {
+                  items: UserRole.values.where((role) {
+// Apenas Secretario, Gestor e Funcionários (Employee) devem estar disponíveis para criação nesta tela.
+// Isso oculta General_Manager e Manager, que não devem ser criados por aqui.
+                    return role == UserRole.SECRETARY ||
+                        role == UserRole.GESTOR ||
+                        role == UserRole.EMPLOYEE;
+                  }).map((role) {
                     return DropdownMenuItem(
                       value: role,
                       child: Text(_roleLabel(role)),
@@ -158,16 +182,43 @@ class _TeamScreenState extends State<TeamScreen> {
                       return null;
                     },
                   ),
+                const SizedBox(height: 10),
+                if ((selectedRole == UserRole.EMPLOYEE ||
+                        selectedRole == UserRole.MANAGER) &&
+                    context.read<AuthProvider>().currentUser?.role ==
+                        UserRole.SECRETARY)
+                  DropdownButtonFormField<String>(
+                    value: selectedGestorId,
+                    decoration:
+                        const InputDecoration(labelText: 'Vincular a Gestor'),
+                    items: _members
+                        .where((m) => m.role == UserRole.GESTOR)
+                        .map((gestor) {
+                      return DropdownMenuItem(
+                        value: gestor.id,
+                        child: Text(gestor.name),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setModal(() => selectedGestorId = val),
+                    hint: const Text('Selecionar Gestor'),
+                  ),
+                const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () {
-                    if (usernameCtrl.text.isEmpty || nameCtrl.text.isEmpty) {
+                  onPressed: () async {
+                    if (usernameCtrl.text.isEmpty ||
+                        nameCtrl.text.isEmpty ||
+                        passwordCtrl.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Preencha os campos obrigatórios.')),
+                            content: Text(
+                                'Preencha os campos obrigatórios, incluindo senha.')),
                       );
                       return;
                     }
-                    context.read<AuthProvider>().register({
+
+                    final auth = context.read<AuthProvider>();
+
+                    await auth.register({
                       'username': usernameCtrl.text.trim(),
                       'password': passwordCtrl.text.trim(),
                       'name': nameCtrl.text.trim(),
@@ -176,12 +227,24 @@ class _TeamScreenState extends State<TeamScreen> {
                       'secretary': selectedRole == UserRole.SECRETARY
                           ? secretaryController.text.trim()
                           : null,
-                      'managerId':
-                          context.read<AuthProvider>().currentUser?.id ?? '',
-                    }).then((_) {
-                      setState(() {}); // Trigger refresh on team list
+                      'managerId': selectedGestorId ??
+                          auth.currentUser?.id ??
+                          '', // Use selectedGestorId se existir, senão user autal
                     });
-                    Navigator.pop(context);
+
+                    if (auth.error != null && ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(
+                            content: Text(auth.error!),
+                            backgroundColor: Colors.red),
+                      );
+                      return; // Impede fechar a tela porque deu erro no backend
+                    }
+
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      _load(); // Recarrega a lista de time do zero
+                    }
                   },
                   child: const Text('Salvar'),
                 ),
@@ -206,11 +269,17 @@ class _TeamScreenState extends State<TeamScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isManager =
-        context.watch<AuthProvider>().currentUser?.role == UserRole.MANAGER;
+    final userRole = context.watch<AuthProvider>().currentUser?.role;
+    final isManagerOrSecretary = userRole == UserRole.MANAGER ||
+        userRole == UserRole.GESTOR ||
+        userRole == UserRole.GENERAL_MANAGER ||
+        userRole == UserRole.SECRETARY;
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Equipe'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
@@ -222,7 +291,7 @@ class _TeamScreenState extends State<TeamScreen> {
           ),
         ],
       ),
-      floatingActionButton: isManager
+      floatingActionButton: isManagerOrSecretary
           ? FloatingActionButton(
               onPressed: () => _showRegisterSheet(context),
               child: const Icon(Icons.person_add_outlined),
@@ -267,7 +336,7 @@ class _TeamScreenState extends State<TeamScreen> {
                           '@${m.username}'
                           '${m.function != null ? ' · ${m.function}' : ''}',
                         ),
-                        trailing: isManager
+                        trailing: isManagerOrSecretary
                             ? Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
