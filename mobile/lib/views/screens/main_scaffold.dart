@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/auth_controller.dart';
-import '../../controllers/notification_controller.dart';
-import '../../controllers/planning_controller.dart';
-import '../../controllers/service_controller.dart';
-import '../../controllers/shift_controller.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../providers/planning_provider.dart';
+import '../../providers/service_provider.dart';
+import '../../providers/shift_provider.dart';
 import 'dashboard_screen.dart';
 import 'planning_screen.dart';
 import 'services_screen.dart';
@@ -32,23 +32,23 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   Future<void> _loadData() async {
-    final auth = context.read<AuthController>();
+    final auth = context.read<AuthProvider>();
     final managerId = auth.managerId;
     if (managerId == null) return;
     final userId = auth.currentUser!.id;
 
     await Future.wait([
-      context.read<PlanningController>().loadForManager(managerId),
-      context.read<ServiceController>().loadForManager(managerId),
-      context.read<NotificationController>().loadForUser(userId, managerId),
-      context.read<ShiftController>().loadForManager(managerId),
+      context.read<PlanningProvider>().loadForManager(managerId),
+      context.read<ServiceProvider>().loadForManager(managerId),
+      context.read<NotificationProvider>().loadForUser(userId, managerId),
+      context.read<ShiftProvider>().loadForManager(managerId),
     ]);
   }
 
   @override
   Widget build(BuildContext context) {
-    context.watch<AuthController>();
-    final notifCtrl = context.watch<NotificationController>();
+    context.watch<AuthProvider>();
+    final notifCtrl = context.watch<NotificationProvider>();
     final unread = notifCtrl.unreadCount;
 
     final screens = <Widget>[

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/auth_controller.dart';
-import '../../controllers/planning_controller.dart';
-import '../../controllers/service_controller.dart';
-import '../../controllers/notification_controller.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/planning_provider.dart';
+import '../../providers/service_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../widgets/stat_card.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -12,10 +12,10 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthController>();
-    final plannings = context.watch<PlanningController>().plannings;
-    final services = context.watch<ServiceController>().services;
-    final unread = context.watch<NotificationController>().unreadCount;
+    final auth = context.watch<AuthProvider>();
+    final plannings = context.watch<PlanningProvider>().plannings;
+    final services = context.watch<ServiceProvider>().services;
+    final unread = context.watch<NotificationProvider>().unreadCount;
     final user = auth.currentUser!;
 
     final pending = plannings.where((p) => p.status.name == 'PENDING').length;

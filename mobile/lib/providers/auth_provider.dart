@@ -4,13 +4,13 @@ import 'package:dio/dio.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
-class AuthController extends ChangeNotifier {
+class AuthProvider extends ChangeNotifier {
   final ApiService _api;
   UserModel? _currentUser;
   bool _loading = false;
   String? _error;
 
-  AuthController(this._api) {
+  AuthProvider(this._api) {
     _init();
   }
 
@@ -19,6 +19,8 @@ class AuthController extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
 
+  /// Retorna o managerId efectivo para filtrar dados da API.
+  /// Para MANAGER retorna o próprio id; para outros retorna o managerId.
   String? get managerId {
     if (_currentUser == null) return null;
     return _currentUser!.role == UserRole.MANAGER
@@ -27,13 +29,12 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    // Tenta restaurar sessão com o token salvo
     try {
       final userData = await _api.getMe();
       _currentUser = UserModel.fromJson(userData);
       notifyListeners();
     } catch (_) {
-      // Token inválido ou expirado — ignora e exibe tela de login
+      // Token inválido ou expirado — exibe tela de login
     }
   }
 
@@ -104,5 +105,25 @@ class AuthController extends ChangeNotifier {
   Future<List<UserModel>> getAllUsers() async {
     final list = await _api.getAllUsers();
     return list.map(UserModel.fromJson).toList();
+  }
+
+  Future<UserModel> updateUser(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final updated = await _api.updateUser(id, data);
+    return UserModel.fromJson(updated);
+  }
+
+  Future<UserModel> setUserStatus(String id, UserStatus status) async {
+    final updated = await _api.updateUserStatus(id, status.name);
+    final model = UserModel.fromJson(updated);
+    notifyListeners();
+    return model;
+  }
+
+  Future<void> deleteUser(String id) async {
+    await _api.deleteUser(id);
+    notifyListeners();
   }
 }

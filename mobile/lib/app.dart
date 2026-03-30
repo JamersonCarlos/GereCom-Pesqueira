@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../controllers/auth_controller.dart';
+import '../providers/auth_provider.dart';
 import 'views/screens/login_screen.dart';
 import 'views/screens/main_scaffold.dart';
 
@@ -26,7 +26,7 @@ class GereComApp extends StatelessWidget {
           fillColor: Colors.white,
         ),
       ),
-      home: Consumer<AuthController>(
+      home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           if (auth.isAuthenticated) {
             return const MainScaffold();

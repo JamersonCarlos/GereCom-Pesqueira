@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/auth_controller.dart';
-import '../../controllers/service_controller.dart';
-import '../../controllers/notification_controller.dart';
-import '../../controllers/planning_controller.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/service_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../providers/planning_provider.dart';
 import '../../models/models.dart';
 import '../widgets/status_badge.dart';
 
@@ -13,8 +13,8 @@ class ServicesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final services = context.watch<ServiceController>().services;
-    final user = context.watch<AuthController>().currentUser!;
+    final services = context.watch<ServiceProvider>().services;
+    final user = context.watch<AuthProvider>().currentUser!;
 
     return Scaffold(
       appBar: AppBar(
@@ -42,10 +42,10 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final svcCtrl = context.read<ServiceController>();
-    final notifCtrl = context.read<NotificationController>();
-    final planCtrl = context.read<PlanningController>();
-    final managerId = context.read<AuthController>().managerId!;
+    final svcCtrl = context.read<ServiceProvider>();
+    final notifCtrl = context.read<NotificationProvider>();
+    final planCtrl = context.read<PlanningProvider>();
+    final managerId = context.read<AuthProvider>().managerId!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -139,9 +139,9 @@ class _ServiceCard extends StatelessWidget {
 
   void _showStatusOptions(
     BuildContext context,
-    ServiceController svcCtrl,
-    NotificationController notifCtrl,
-    PlanningController planCtrl,
+    ServiceProvider svcCtrl,
+    NotificationProvider notifCtrl,
+    PlanningProvider planCtrl,
     String managerId,
   ) {
     showModalBottomSheet(

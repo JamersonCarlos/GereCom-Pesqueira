@@ -112,13 +112,42 @@ class ApiService {
     return List<Map<String, dynamic>>.from(res.data as List);
   }
 
+  Future<Map<String, dynamic>> updateUser(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final res = await _dio.put('/users/$id', data: data);
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateUserStatus(
+    String id,
+    String status,
+  ) async {
+    final res = await _dio.patch('/users/$id/status', data: {'status': status});
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<void> deleteUser(String id) async {
+    await _dio.delete('/users/$id');
+  }
+
   // ──────────────────────────────────────────────
-  // Planejamentos
+  // Planejamentos  —  GET    /api/plannings?managerId=
+  //                   POST   /api/plannings
+  //                   PATCH  /api/plannings/:id/status
+  //                   PUT    /api/plannings/:id
+  //                   DELETE /api/plannings/:id
   // ──────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getPlannings(String managerId) async {
     final res =
         await _dio.get('/plannings', queryParameters: {'managerId': managerId});
+    return List<Map<String, dynamic>>.from(res.data as List);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllPlannings() async {
+    final res = await _dio.get('/plannings');
     return List<Map<String, dynamic>>.from(res.data as List);
   }
 
@@ -152,12 +181,19 @@ class ApiService {
   }
 
   // ──────────────────────────────────────────────
-  // Serviços
+  // Serviços  —  GET   /api/services?managerId=
+  //              POST  /api/services
+  //              PATCH /api/services/:id/status
   // ──────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getServices(String managerId) async {
     final res =
         await _dio.get('/services', queryParameters: {'managerId': managerId});
+    return List<Map<String, dynamic>>.from(res.data as List);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllServices() async {
+    final res = await _dio.get('/services');
     return List<Map<String, dynamic>>.from(res.data as List);
   }
 
@@ -175,7 +211,10 @@ class ApiService {
   }
 
   // ──────────────────────────────────────────────
-  // Notificações
+  // Notificações  —  GET   /api/notifications?userId=
+  //                  POST  /api/notifications
+  //                  PATCH /api/notifications/:id/read
+  //                  PATCH /api/notifications/read-all?userId=
   // ──────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getNotifications(String userId) async {
@@ -200,12 +239,20 @@ class ApiService {
   }
 
   // ──────────────────────────────────────────────
-  // Escalas
+  // Escalas  —  GET    /api/shifts?managerId=
+  //             POST   /api/shifts
+  //             PUT    /api/shifts/:id
+  //             DELETE /api/shifts/:id
   // ──────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getShifts(String managerId) async {
     final res =
         await _dio.get('/shifts', queryParameters: {'managerId': managerId});
+    return List<Map<String, dynamic>>.from(res.data as List);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllShifts() async {
+    final res = await _dio.get('/shifts');
     return List<Map<String, dynamic>>.from(res.data as List);
   }
 

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'controllers/auth_controller.dart';
-import 'controllers/planning_controller.dart';
-import 'controllers/service_controller.dart';
-import 'controllers/notification_controller.dart';
-import 'controllers/shift_controller.dart';
+import 'providers/auth_provider.dart';
+import 'providers/planning_provider.dart';
+import 'providers/service_provider.dart';
+import 'providers/notification_provider.dart';
+import 'providers/shift_provider.dart';
 import 'services/api_service.dart';
 import 'app.dart';
 
@@ -17,11 +17,11 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthController(api)),
-        ChangeNotifierProvider(create: (_) => PlanningController(api)),
-        ChangeNotifierProvider(create: (_) => ServiceController(api)),
-        ChangeNotifierProvider(create: (_) => NotificationController(api)),
-        ChangeNotifierProvider(create: (_) => ShiftController(api)),
+        ChangeNotifierProvider(create: (_) => AuthProvider(api)),
+        ChangeNotifierProvider(create: (_) => PlanningProvider(api)),
+        ChangeNotifierProvider(create: (_) => ServiceProvider(api)),
+        ChangeNotifierProvider(create: (_) => NotificationProvider(api)),
+        ChangeNotifierProvider(create: (_) => ShiftProvider(api)),
       ],
       child: const GereComApp(),
     ),

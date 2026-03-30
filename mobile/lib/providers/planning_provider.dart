@@ -3,14 +3,14 @@ import 'package:dio/dio.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
-import 'notification_controller.dart';
+import 'notification_provider.dart';
 
-class PlanningController extends ChangeNotifier {
+class PlanningProvider extends ChangeNotifier {
   final ApiService _api;
   List<PlanningModel> _plannings = [];
   bool _loading = false;
 
-  PlanningController(this._api);
+  PlanningProvider(this._api);
 
   List<PlanningModel> get plannings => _plannings;
   bool get loading => _loading;
@@ -31,7 +31,7 @@ class PlanningController extends ChangeNotifier {
 
   Future<void> add(
     PlanningModel planning,
-    NotificationController notifCtrl,
+    NotificationProvider notifCtrl,
   ) async {
     try {
       final created = await _api.createPlanning(planning.toJson());
@@ -44,7 +44,7 @@ class PlanningController extends ChangeNotifier {
           managerId: planning.managerId,
           title: 'Novo Planejamento',
           message:
-              '${planning.department} enviou um novo planejamento para ${planning.serviceType}.',
+              '${planning.department ?? planning.serviceType} enviou um novo planejamento para ${planning.serviceType}.',
           createdAt: DateTime.now().toIso8601String(),
           type: NotificationType.service,
           relatedId: planning.id,
@@ -62,7 +62,7 @@ class PlanningController extends ChangeNotifier {
     String id,
     ServiceStatus status, {
     String? rejectionReason,
-    NotificationController? notifCtrl,
+    NotificationProvider? notifCtrl,
   }) async {
     try {
       final updated = await _api.updatePlanningStatus(
@@ -74,7 +74,7 @@ class PlanningController extends ChangeNotifier {
       final listIndex = _plannings.indexWhere((p) => p.id == id);
       if (listIndex >= 0) _plannings[listIndex] = model;
 
-      if (notifCtrl != null) {
+      if (notifCtrl != null && model.secretaryId != null) {
         final action = status == ServiceStatus.APPROVED
             ? 'aprovado'
             : status == ServiceStatus.REJECTED
@@ -83,7 +83,7 @@ class PlanningController extends ChangeNotifier {
         await notifCtrl.add(
           NotificationModel(
             id: id,
-            userId: model.secretaryId,
+            userId: model.secretaryId!,
             managerId: model.managerId,
             title: 'Status do Planejamento Atualizado',
             message: 'Seu planejamento para ${model.serviceType} foi $action.',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/auth_controller.dart';
+import '../../providers/auth_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,7 +19,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthController>().currentUser!;
+    final user = context.read<AuthProvider>().currentUser!;
     _nameCtrl = TextEditingController(text: user.name);
     _emailCtrl = TextEditingController(text: user.email ?? '');
     _phoneCtrl = TextEditingController(text: user.phone ?? '');
@@ -35,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    await context.read<AuthController>().updateProfile(
+    await context.read<AuthProvider>().updateProfile(
       name: _nameCtrl.text,
       email: _emailCtrl.text,
       phone: _phoneCtrl.text,
@@ -67,13 +67,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirm == true && mounted) {
-      await context.read<AuthController>().logout();
+      await context.read<AuthProvider>().logout();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthController>().currentUser!;
+    final user = context.watch<AuthProvider>().currentUser!;
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(

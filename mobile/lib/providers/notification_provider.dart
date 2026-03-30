@@ -4,11 +4,11 @@ import 'package:dio/dio.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
-class NotificationController extends ChangeNotifier {
+class NotificationProvider extends ChangeNotifier {
   final ApiService _api;
   List<NotificationModel> _notifications = [];
 
-  NotificationController(this._api);
+  NotificationProvider(this._api);
 
   List<NotificationModel> get notifications => _notifications;
 
@@ -19,7 +19,7 @@ class NotificationController extends ChangeNotifier {
       final data = await _api.getNotifications(userId);
       _notifications = data
           .map(NotificationModel.fromJson)
-          .where((n) => n.managerId == managerId)
+          .where((n) => n.managerId == null || n.managerId == managerId)
           .toList();
       notifyListeners();
     } on DioException catch (e) {

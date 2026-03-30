@@ -3,15 +3,15 @@ import 'package:dio/dio.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
-import 'notification_controller.dart';
-import 'planning_controller.dart';
+import 'notification_provider.dart';
+import 'planning_provider.dart';
 
-class ServiceController extends ChangeNotifier {
+class ServiceProvider extends ChangeNotifier {
   final ApiService _api;
   List<ServiceModel> _services = [];
   bool _loading = false;
 
-  ServiceController(this._api);
+  ServiceProvider(this._api);
 
   List<ServiceModel> get services => _services;
   bool get loading => _loading;
@@ -34,8 +34,8 @@ class ServiceController extends ChangeNotifier {
     String planningId,
     List<String> teamIds,
     String managerId,
-    PlanningController planningCtrl,
-    NotificationController notifCtrl,
+    PlanningProvider planningCtrl,
+    NotificationProvider notifCtrl,
   ) async {
     final planning = planningCtrl.getById(planningId);
     if (planning == null) return;
@@ -43,6 +43,7 @@ class ServiceController extends ChangeNotifier {
     try {
       final body = {
         'managerId': managerId,
+        'createdById': managerId,
         'planningId': planningId,
         'teamIds': teamIds,
         'status': ServiceStatus.IN_PROGRESS.name,
@@ -51,7 +52,7 @@ class ServiceController extends ChangeNotifier {
         'dateSnapshot': planning.date,
         'timeSnapshot': planning.time,
         'secretaryIdSnapshot': planning.secretaryId,
-        'locationSnapshot': planning.location.toJson(),
+        'locationSnapshot': planning.location?.toJson(),
         'descriptionSnapshot': planning.description,
         'observationsSnapshot': planning.observations,
       };
@@ -73,8 +74,8 @@ class ServiceController extends ChangeNotifier {
             userId: tid,
             managerId: managerId,
             title: 'Novo Serviço Atribuído',
-            message:
-                'Novo serviço: ${planning.serviceType} – ${planning.date} às ${planning.time}.',
+            message: 'Novo serviço: ${planning.serviceType} – ${planning.date}'
+                '${planning.time != null ? ' às ${planning.time}' : ''}.',
             createdAt: DateTime.now().toIso8601String(),
             type: NotificationType.service,
             relatedId: service.id,
@@ -94,8 +95,8 @@ class ServiceController extends ChangeNotifier {
     ServiceStatus status,
     String currentUserId,
     String managerId,
-    NotificationController notifCtrl,
-    PlanningController planningCtrl, {
+    NotificationProvider notifCtrl,
+    PlanningProvider planningCtrl, {
     String? reason,
   }) async {
     final index = _services.indexWhere((s) => s.id == id);
@@ -114,7 +115,9 @@ class ServiceController extends ChangeNotifier {
       final model = ServiceModel.fromJson(updated);
       _services[index] = model;
 
-      final planning = planningCtrl.getById(model.planningId);
+      final planning = model.planningId != null
+          ? planningCtrl.getById(model.planningId!)
+          : null;
       if (planning != null) {
         String title = 'Status de Serviço Atualizado';
         String message =
@@ -158,8 +161,8 @@ class ServiceController extends ChangeNotifier {
   Future<void> confirmCompletion(
     String id,
     String managerId,
-    NotificationController notifCtrl,
-    PlanningController planningCtrl,
+    NotificationProvider notifCtrl,
+    PlanningProvider planningCtrl,
   ) async {
     final index = _services.indexWhere((s) => s.id == id);
     if (index < 0) return;
@@ -174,7 +177,9 @@ class ServiceController extends ChangeNotifier {
       final model = ServiceModel.fromJson(updated);
       _services[index] = model;
 
-      final planning = planningCtrl.getById(model.planningId);
+      final planning = model.planningId != null
+          ? planningCtrl.getById(model.planningId!)
+          : null;
       if (planning != null) {
         for (final tid in model.teamIds) {
           await notifCtrl.add(
@@ -203,8 +208,8 @@ class ServiceController extends ChangeNotifier {
   Future<void> requestReview(
     String id,
     String managerId,
-    NotificationController notifCtrl,
-    PlanningController planningCtrl,
+    NotificationProvider notifCtrl,
+    PlanningProvider planningCtrl,
   ) async {
     final index = _services.indexWhere((s) => s.id == id);
     if (index < 0) return;
@@ -219,7 +224,9 @@ class ServiceController extends ChangeNotifier {
       final model = ServiceModel.fromJson(updated);
       _services[index] = model;
 
-      final planning = planningCtrl.getById(model.planningId);
+      final planning = model.planningId != null
+          ? planningCtrl.getById(model.planningId!)
+          : null;
       if (planning != null) {
         for (final tid in model.teamIds) {
           await notifCtrl.add(

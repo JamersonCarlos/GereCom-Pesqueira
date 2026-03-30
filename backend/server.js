@@ -20,19 +20,29 @@ app.use('/api/shifts', require('./routes/shifts'));
 // Health check
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 
-// Seed admin padrão ao iniciar
-async function seedAdmin() {
-  const [rows] = await pool.query(
-    "SELECT id FROM users WHERE username = 'admin'"
-  );
-  if (!rows.length) {
-    const hash = await bcrypt.hash('123', 10);
-    await pool.query(
-      `INSERT INTO users (id, username, password, name, role, status)
-       VALUES (?, 'admin', ?, 'Gerente Demo', 'MANAGER', 'ACTIVE')`,
-      [uuidv4(), hash]
+// Seed usuários padrão ao iniciar
+async function seedUsers() {
+  const defaultUsers = [
+    { username: 'gerente', name: 'Gerente Geral', role: 'GENERAL_MANAGER' },
+    { username: 'gestor', name: 'Gestor de Equipe', role: 'GESTOR' },
+    { username: 'secretaria', name: 'Secretaria Demo', role: 'SECRETARY' },
+    { username: 'funcionario', name: 'Colaborador Demo', role: 'EMPLOYEE' },
+    { username: 'admin', name: 'Gerente (Antigo)', role: 'MANAGER' }
+  ];
+
+  for (const u of defaultUsers) {
+    const [rows] = await pool.query(
+      "SELECT id FROM users WHERE username = ?", [u.username]
     );
-    console.log('✅ Admin padrão criado: admin / 123');
+    if (!rows.length) {
+      const hash = await bcrypt.hash('123', 10);
+      await pool.query(
+        `INSERT INTO users (id, username, password, name, role, status)
+         VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
+        [uuidv4(), u.username, hash, u.name, u.role]
+      );
+      console.log(`✅ Usuário padrão criado: ${u.username} / 123 (${u.role})`);
+    }
   }
 }
 
@@ -40,8 +50,8 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`🚀 GereCom API rodando na porta ${PORT}`);
   try {
-    await seedAdmin();
+    await seedUsers();
   } catch (err) {
-    console.error('Erro ao seed admin:', err.message);
+    console.error('Erro ao fazer seed de usuários:', err.message);
   }
 });

@@ -5,7 +5,7 @@ enum NotificationType { service, schedule, general }
 class NotificationModel {
   final String id;
   final String userId;
-  final String managerId;
+  final String? managerId;
   final String title;
   final String message;
   final bool read;
@@ -16,7 +16,7 @@ class NotificationModel {
   const NotificationModel({
     required this.id,
     required this.userId,
-    required this.managerId,
+    this.managerId,
     required this.title,
     required this.message,
     this.read = false,
@@ -29,7 +29,7 @@ class NotificationModel {
       NotificationModel(
         id: json['id'] as String,
         userId: json['userId'] as String,
-        managerId: json['managerId'] as String,
+        managerId: json['managerId'] as String?,
         title: json['title'] as String,
         message: json['message'] as String,
         read: json['read'] as bool? ?? false,
@@ -44,26 +44,26 @@ class NotificationModel {
       );
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'userId': userId,
-    'managerId': managerId,
-    'title': title,
-    'message': message,
-    'read': read,
-    'createdAt': createdAt,
-    'type': type.name,
-    'relatedId': relatedId,
-  };
+        'id': id,
+        'userId': userId,
+        'managerId': managerId,
+        'title': title,
+        'message': message,
+        'read': read,
+        'createdAt': createdAt,
+        'type': type.name,
+        'relatedId': relatedId,
+      };
 
   NotificationModel copyWith({bool? read}) => NotificationModel(
-    id: id,
-    userId: userId,
-    managerId: managerId,
-    title: title,
-    message: message,
-    read: read ?? this.read,
-    createdAt: createdAt,
-    type: type,
-    relatedId: relatedId,
-  );
+        id: id,
+        userId: userId,
+        managerId: managerId,
+        title: title,
+        message: message,
+        read: read ?? this.read,
+        createdAt: createdAt,
+        type: type,
+        relatedId: relatedId,
+      );
 }

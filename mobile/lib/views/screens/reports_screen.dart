@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/planning_controller.dart';
-import '../../controllers/service_controller.dart';
+import '../../providers/planning_provider.dart';
+import '../../providers/service_provider.dart';
 import '../../models/models.dart';
 
 class ReportsScreen extends StatelessWidget {
@@ -10,8 +10,8 @@ class ReportsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final plannings = context.watch<PlanningController>().plannings;
-    final services = context.watch<ServiceController>().services;
+    final plannings = context.watch<PlanningProvider>().plannings;
+    final services = context.watch<ServiceProvider>().services;
 
     final byType = <String, int>{};
     for (final p in plannings) {

@@ -4,12 +4,12 @@ import 'package:dio/dio.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
-class ShiftController extends ChangeNotifier {
+class ShiftProvider extends ChangeNotifier {
   final ApiService _api;
   List<ShiftModel> _shifts = [];
   bool _loading = false;
 
-  ShiftController(this._api);
+  ShiftProvider(this._api);
 
   List<ShiftModel> get shifts => _shifts;
   bool get loading => _loading;
@@ -31,7 +31,14 @@ class ShiftController extends ChangeNotifier {
 
   Future<void> add(ShiftModel shift) async {
     try {
-      final created = await _api.createShift(shift.toJson());
+      final created = await _api.createShift({
+        'managerId': shift.managerId,
+        'date': shift.date,
+        'startTime': shift.startTime,
+        'endTime': shift.endTime,
+        'employeeIds': shift.employeeIds,
+        'observations': shift.observations,
+      });
       final model = ShiftModel.fromJson(created);
       _shifts.add(model);
       _shifts.sort((a, b) => a.date.compareTo(b.date));
@@ -44,7 +51,13 @@ class ShiftController extends ChangeNotifier {
 
   Future<void> update(ShiftModel shift) async {
     try {
-      final updated = await _api.updateShift(shift.id, shift.toJson());
+      final updated = await _api.updateShift(shift.id, {
+        'date': shift.date,
+        'startTime': shift.startTime,
+        'endTime': shift.endTime,
+        'employeeIds': shift.employeeIds,
+        'observations': shift.observations,
+      });
       final model = ShiftModel.fromJson(updated);
       final listIndex = _shifts.indexWhere((s) => s.id == shift.id);
       if (listIndex >= 0) _shifts[listIndex] = model;
@@ -58,12 +71,16 @@ class ShiftController extends ChangeNotifier {
   Future<ShiftModel> createShift({
     required String managerId,
     required String date,
+    String? startTime,
+    String? endTime,
     required List<String> employeeIds,
     String? observations,
   }) async {
     final body = {
       'managerId': managerId,
       'date': date,
+      'startTime': startTime,
+      'endTime': endTime,
       'employeeIds': employeeIds,
       'observations': observations,
     };

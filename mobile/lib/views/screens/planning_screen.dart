@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/auth_controller.dart';
-import '../../controllers/planning_controller.dart';
-import '../../controllers/notification_controller.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/planning_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../models/models.dart';
 import '../widgets/status_badge.dart';
 
@@ -12,8 +12,8 @@ class PlanningScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final plannings = context.watch<PlanningController>().plannings;
-    final auth = context.watch<AuthController>();
+    final plannings = context.watch<PlanningProvider>().plannings;
+    final auth = context.watch<AuthProvider>();
     final user = auth.currentUser!;
 
     return Scaffold(
@@ -44,8 +44,8 @@ class _PlanningCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final planCtrl = context.read<PlanningController>();
-    final notifCtrl = context.read<NotificationController>();
+    final planCtrl = context.read<PlanningProvider>();
+    final notifCtrl = context.read<NotificationProvider>();
 
     Future<void> approve() async {
       await planCtrl.updateStatus(
@@ -112,15 +112,17 @@ class _PlanningCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '${planning.department} · ${planning.date} às ${planning.time}',
+              '${planning.department ?? '-'} · ${planning.date}'
+              '${planning.time != null ? ' às ${planning.time}' : ''}',
               style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
-            Text(
-              planning.location.address,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            if (planning.location != null)
+              Text(
+                planning.location!.address,
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             if (planning.urgency == UrgencyLevel.URGENT)
               const Padding(
                 padding: EdgeInsets.only(top: 4),

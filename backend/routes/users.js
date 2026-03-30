@@ -44,4 +44,58 @@ router.get('/team/:managerId', auth, async (req, res) => {
   }
 });
 
+// PUT /api/users/:id  — atualizar dados do usuário
+router.put('/:id', auth, async (req, res) => {
+  const { name, email, phone, function: fn } = req.body;
+  try {
+    await pool.query(
+      'UPDATE users SET name = ?, email = ?, phone = ?, `function` = ? WHERE id = ?',
+      [name, email || null, phone || null, fn || null, req.params.id]
+    );
+    const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [
+      req.params.id,
+    ]);
+    if (!rows.length)
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    const user = rows[0];
+    delete user.password;
+    res.json(_mapUser(user));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/users/:id/status  — ativar/inativar usuário
+router.patch('/:id/status', auth, async (req, res) => {
+  const { status } = req.body;
+  if (!['ACTIVE', 'INACTIVE'].includes(status))
+    return res.status(400).json({ error: 'Status inválido.' });
+  try {
+    await pool.query('UPDATE users SET status = ? WHERE id = ?', [
+      status,
+      req.params.id,
+    ]);
+    const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [
+      req.params.id,
+    ]);
+    if (!rows.length)
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    const user = rows[0];
+    delete user.password;
+    res.json(_mapUser(user));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/users/:id
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

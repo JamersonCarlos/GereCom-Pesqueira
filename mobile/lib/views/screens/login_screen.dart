@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/auth_controller.dart';
+import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthController>();
+    final auth = context.read<AuthProvider>();
     await auth.login(_usernameCtrl.text.trim(), _passwordCtrl.text);
     if (mounted && auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -36,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthController>();
+    final auth = context.watch<AuthProvider>();
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
