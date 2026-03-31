@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/models.dart';
+import '../../providers/service_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../providers/planning_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ServiceCard extends StatelessWidget {
@@ -11,14 +15,107 @@ class ServiceCard extends StatelessWidget {
   Future<void> _openMap() async {
     final addr = service.locationSnapshot?.address;
     if (addr == null || addr.isEmpty) return;
-    final Uri url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(addr)}');
+    final Uri url = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(addr)}');
     if (!await launchUrl(url)) {
       debugPrint('Could not launch $url');
     }
   }
 
+  bool get _isManager =>
+      user.role == UserRole.GESTOR ||
+      user.role == UserRole.MANAGER ||
+      user.role == UserRole.GENERAL_MANAGER ||
+      user.role == UserRole.SECRETARY;
+
+  bool get _isTeamMember => service.teamIds.contains(user.id);
+
+  Future<void> _executeService(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Marcar como Executado?'),
+        content: Text(
+            'Confirma que o serviço "${service.serviceTypeSnapshot ?? 'Serviço'}" foi concluído e aguarda aprovação do gestor?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirmar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final svcCtrl = context.read<ServiceProvider>();
+    final notifCtrl = context.read<NotificationProvider>();
+    final planningCtrl = context.read<PlanningProvider>();
+    try {
+      await svcCtrl.updateStatus(
+        service.id,
+        ServiceStatus.WAITING_APPROVAL,
+        user.id,
+        service.managerId,
+        notifCtrl,
+        planningCtrl,
+      );
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao atualizar status.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmCompletion(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Conclusão?'),
+        content: Text(
+            'Confirma a conclusão do serviço "${service.serviceTypeSnapshot ?? 'Serviço'}"?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirmar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final svcCtrl = context.read<ServiceProvider>();
+    final notifCtrl = context.read<NotificationProvider>();
+    final planningCtrl = context.read<PlanningProvider>();
+    try {
+      await svcCtrl.confirmCompletion(
+        service.id,
+        user.id,
+        notifCtrl,
+        planningCtrl,
+      );
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao confirmar conclusão.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool canExecute = !_isManager &&
+        _isTeamMember &&
+        service.status == ServiceStatus.IN_PROGRESS;
+    final bool canConfirm =
+        _isManager && service.status == ServiceStatus.WAITING_APPROVAL;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -32,14 +129,16 @@ class ServiceCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     service.serviceTypeSnapshot ?? 'Serviço s/ Tipo',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
                 Chip(
                   label: Text(
-                    service.status.name,
+                    _statusLabel(service.status),
                     style: const TextStyle(fontSize: 12),
                   ),
+                  backgroundColor: _statusColor(service.status),
                 ),
               ],
             ),
@@ -49,28 +148,86 @@ class ServiceCard extends StatelessWidget {
                 onTap: _openMap,
                 child: Row(
                   children: [
-                     const Icon(Icons.location_on, color: Colors.blue, size: 16),
-                     const SizedBox(width: 4),
-                     Expanded(
-                        child: Text(
-                          service.locationSnapshot!.address!,
-                          style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
-                        ),
-                     ),
+                    const Icon(Icons.location_on, color: Colors.blue, size: 16),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        service.locationSnapshot!.address!,
+                        style: const TextStyle(
+                            color: Colors.blue,
+                            decoration: TextDecoration.underline),
+                      ),
+                    ),
                   ],
                 ),
               ),
             const SizedBox(height: 8),
-            Text('Data: ${service.dateSnapshot ?? '-'} | Hora: ${service.timeSnapshot ?? '-'}'),
+            Text(
+                'Data: ${service.dateSnapshot ?? '-'} | Hora: ${service.timeSnapshot ?? '-'}'),
             const SizedBox(height: 4),
             Text('Departamento: ${service.departmentSnapshot ?? '-'}'),
-            if (service.teamIds != null && service.teamIds!.isNotEmpty) ...[
+            if (service.teamIds.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('Operadores alocados: ${service.teamIds!.length}', style: const TextStyle(color: Colors.grey)),
-            ]
+              Text('Operadores alocados: ${service.teamIds.length}',
+                  style: const TextStyle(color: Colors.grey)),
+            ],
+            if (canExecute) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _executeService(context),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Marcar como Executado'),
+                ),
+              ),
+            ],
+            if (canConfirm) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _confirmCompletion(context),
+                  icon: const Icon(Icons.verified_outlined),
+                  label: const Text('Confirmar Conclusão'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _statusLabel(ServiceStatus s) {
+    const labels = {
+      ServiceStatus.PENDING: 'Pendente',
+      ServiceStatus.APPROVED: 'Aprovado',
+      ServiceStatus.REJECTED: 'Rejeitado',
+      ServiceStatus.IN_PROGRESS: 'Em Andamento',
+      ServiceStatus.COMPLETED: 'Concluído',
+      ServiceStatus.CANCELLED: 'Cancelado',
+      ServiceStatus.RESCHEDULED: 'Reagendado',
+      ServiceStatus.WAITING_APPROVAL: 'Aguardando Aprovação',
+    };
+    return labels[s] ?? s.name;
+  }
+
+  Color _statusColor(ServiceStatus s) {
+    switch (s) {
+      case ServiceStatus.IN_PROGRESS:
+        return Colors.blue.shade100;
+      case ServiceStatus.WAITING_APPROVAL:
+        return Colors.orange.shade100;
+      case ServiceStatus.COMPLETED:
+        return Colors.green.shade100;
+      case ServiceStatus.CANCELLED:
+        return Colors.red.shade100;
+      default:
+        return Colors.grey.shade200;
+    }
   }
 }

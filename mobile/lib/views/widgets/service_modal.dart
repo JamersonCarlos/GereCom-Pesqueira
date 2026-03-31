@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/service_provider.dart';
 import '../../providers/planning_provider.dart'; // importando pra reusar se for um serviço planejado
+import '../../providers/notification_provider.dart';
 import '../../models/models.dart';
 import 'package:uuid/uuid.dart';
 
@@ -80,18 +82,61 @@ class _ServiceModalState extends State<ServiceModal> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _dateCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'Data (AAAA-MM-DD)'),
+                  child: GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate:
+                            DateTime.tryParse(_dateCtrl.text) ?? DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) {
+                        setState(() => _dateCtrl.text =
+                            DateFormat('yyyy-MM-dd').format(picked));
+                      }
+                    },
+                    child: AbsorbPointer(
+                      child: TextField(
+                        controller: _dateCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Data',
+                          prefixIcon: Icon(Icons.calendar_today_outlined),
+                          suffixIcon: Icon(Icons.arrow_drop_down),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
-                    controller: _timeCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'Hora (HH:MM)'),
+                  child: GestureDetector(
+                    onTap: () async {
+                      final parts = _timeCtrl.text.split(':');
+                      final initial = parts.length == 2
+                          ? TimeOfDay(
+                              hour: int.tryParse(parts[0]) ?? 0,
+                              minute: int.tryParse(parts[1]) ?? 0)
+                          : TimeOfDay.now();
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: initial,
+                      );
+                      if (picked != null) {
+                        setState(() => _timeCtrl.text =
+                            '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+                      }
+                    },
+                    child: AbsorbPointer(
+                      child: TextField(
+                        controller: _timeCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Horário',
+                          prefixIcon: Icon(Icons.access_time),
+                          suffixIcon: Icon(Icons.arrow_drop_down),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -130,6 +175,7 @@ class _ServiceModalState extends State<ServiceModal> {
 
                   final auth = context.read<AuthProvider>();
                   final svcCtrl = context.read<ServiceProvider>();
+                  final notifCtrl = context.read<NotificationProvider>();
 
                   final user = auth.currentUser!;
                   final managerId = auth.managerId!;
@@ -148,7 +194,8 @@ class _ServiceModalState extends State<ServiceModal> {
                     "locationSnapshot": {"address": _addressCtrl.text.trim()}
                   };
 
-                  await svcCtrl.createServiceDirectly(serviceToInsert);
+                  await svcCtrl.createServiceDirectly(
+                      serviceToInsert, notifCtrl, user.id);
                   if (context.mounted) Navigator.pop(context);
                 },
                 child: const Text('Designar Serviço'),

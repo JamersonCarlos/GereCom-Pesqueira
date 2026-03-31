@@ -17,6 +17,7 @@ class UserModel {
   final UserStatus status;
   final String? email;
   final String? phone;
+  final bool mustChangePassword;
   final String createdAt;
 
   const UserModel({
@@ -32,42 +33,46 @@ class UserModel {
     this.status = UserStatus.ACTIVE,
     this.email,
     this.phone,
+    this.mustChangePassword = false,
     required this.createdAt,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-    id: json['id'] as String,
-    username: json['username'] as String,
-    password: json['password'] as String?,
-    name: json['name'] as String,
-    role: UserRole.values.firstWhere((e) => e.name == json['role']),
-    managerId: json['managerId'] as String?,
-    generalManagerId: json['generalManagerId'] as String?,
-    department: json['department'] as String?,
-    function: json['function'] as String?,
-    status: json['status'] != null
-        ? UserStatus.values.firstWhere((e) => e.name == json['status'])
-        : UserStatus.ACTIVE,
-    email: json['email'] as String?,
-    phone: json['phone'] as String?,
-    createdAt: json['createdAt'] as String,
-  );
+        id: json['id'] as String,
+        username: json['username'] as String,
+        password: json['password'] as String?,
+        name: json['name'] as String,
+        role: UserRole.values.firstWhere((e) => e.name == json['role']),
+        managerId: json['managerId'] as String?,
+        generalManagerId: json['generalManagerId'] as String?,
+        department: json['department'] as String?,
+        function: json['function'] as String?,
+        status: json['status'] != null
+            ? UserStatus.values.firstWhere((e) => e.name == json['status'])
+            : UserStatus.ACTIVE,
+        email: json['email'] as String?,
+        phone: json['phone'] as String?,
+        mustChangePassword: json['mustChangePassword'] == true ||
+            json['mustChangePassword'] == 1,
+        createdAt: json['createdAt'] as String,
+      );
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'username': username,
-    'password': password,
-    'name': name,
-    'role': role.name,
-    'managerId': managerId,
-    'generalManagerId': generalManagerId,
-    'department': department,
-    'function': function,
-    'status': status.name,
-    'email': email,
-    'phone': phone,
-    'createdAt': createdAt,
-  };
+        'id': id,
+        'username': username,
+        'password': password,
+        'name': name,
+        'role': role.name,
+        'managerId': managerId,
+        'generalManagerId': generalManagerId,
+        'department': department,
+        'function': function,
+        'status': status.name,
+        'email': email,
+        'phone': phone,
+        'mustChangePassword': mustChangePassword,
+        'createdAt': createdAt,
+      };
 
   UserModel copyWith({
     String? name,
@@ -77,21 +82,24 @@ class UserModel {
     String? function,
     UserStatus? status,
     String? password,
-  }) => UserModel(
-    id: id,
-    username: username,
-    password: password ?? this.password,
-    name: name ?? this.name,
-    role: role,
-    managerId: managerId,
-    generalManagerId: generalManagerId,
-    department: department ?? this.department,
-    function: function ?? this.function,
-    status: status ?? this.status,
-    email: email ?? this.email,
-    phone: phone ?? this.phone,
-    createdAt: createdAt,
-  );
+    bool? mustChangePassword,
+  }) =>
+      UserModel(
+        id: id,
+        username: username,
+        password: password ?? this.password,
+        name: name ?? this.name,
+        role: role,
+        managerId: managerId,
+        generalManagerId: generalManagerId,
+        department: department ?? this.department,
+        function: function ?? this.function,
+        status: status ?? this.status,
+        email: email ?? this.email,
+        phone: phone ?? this.phone,
+        mustChangePassword: mustChangePassword ?? this.mustChangePassword,
+        createdAt: createdAt,
+      );
 
   String get roleLabel {
     const labels = {

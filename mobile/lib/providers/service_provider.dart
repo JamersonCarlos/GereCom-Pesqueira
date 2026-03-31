@@ -17,13 +17,39 @@ class ServiceProvider extends ChangeNotifier {
   bool get loading => _loading;
 
   // Added createServiceDirectly for standalone Services without Planning
-  Future<void> createServiceDirectly(Map<String, dynamic> data) async {
+  Future<void> createServiceDirectly(
+    Map<String, dynamic> data,
+    NotificationProvider notifCtrl,
+    String currentUserId,
+  ) async {
     _loading = true;
     notifyListeners();
     try {
       final created = await _api.createService(data);
       final service = ServiceModel.fromJson(created);
       _services.insert(0, service);
+
+      // Notify every team member of the new assignment
+      final teamIds = List<String>.from(data['teamIds'] as List? ?? []);
+      final managerId = data['managerId'] as String? ?? currentUserId;
+      final typeName = data['serviceTypeSnapshot'] as String? ?? 'Novo Serviço';
+      final dateStr = data['dateSnapshot'] as String? ?? '';
+      final timeStr = data['timeSnapshot'] as String? ?? '';
+      for (final tid in teamIds) {
+        await notifCtrl.add(
+          NotificationModel(
+            id: service.id,
+            userId: tid,
+            managerId: managerId,
+            title: 'Novo Serviço Atribuído',
+            message:
+                'Você foi alocado para o serviço: $typeName${dateStr.isNotEmpty ? ' – $dateStr' : ''}${timeStr.isNotEmpty ? ' às $timeStr' : ''}.',
+            createdAt: DateTime.now().toIso8601String(),
+            type: NotificationType.service,
+            relatedId: service.id,
+          ),
+        );
+      }
     } on DioException catch (e) {
       debugPrint('createServiceDirectly error: ${e.message}');
       rethrow;
@@ -41,6 +67,20 @@ class ServiceProvider extends ChangeNotifier {
       _services = data.map(ServiceModel.fromJson).toList();
     } on DioException catch (e) {
       debugPrint('loadForManager services error: ${e.message}');
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadForEmployee(String userId) async {
+    _loading = true;
+    notifyListeners();
+    try {
+      final data = await _api.getServicesForEmployee(userId);
+      _services = data.map(ServiceModel.fromJson).toList();
+    } on DioException catch (e) {
+      debugPrint('loadForEmployee services error: ${e.message}');
     } finally {
       _loading = false;
       notifyListeners();
@@ -135,23 +175,22 @@ class ServiceProvider extends ChangeNotifier {
       final planning = model.planningId != null
           ? planningCtrl.getById(model.planningId!)
           : null;
-      if (planning != null) {
+      final typeName =
+          planning?.serviceType ?? model.serviceTypeSnapshot ?? 'Serviço';
+      if (planning != null || model.serviceTypeSnapshot != null) {
         String title = 'Status de Serviço Atualizado';
         String message =
-            "O serviço '${planning.serviceType}' foi marcado como ${status.name}.";
+            "O serviço '$typeName' foi marcado como ${status.name}.";
 
         if (status == ServiceStatus.WAITING_APPROVAL) {
           title = 'Serviço Concluído (Aguardando Aprovação)';
-          message =
-              "O serviço '${planning.serviceType}' aguarda confirmação do gerente.";
+          message = "O serviço '$typeName' aguarda confirmação do gerente.";
         } else if (status == ServiceStatus.CANCELLED) {
           title = 'Serviço Cancelado';
-          message =
-              "O serviço '${planning.serviceType}' foi cancelado. Motivo: $reason";
+          message = "O serviço '$typeName' foi cancelado. Motivo: $reason";
         } else if (status == ServiceStatus.RESCHEDULED) {
           title = 'Serviço Reagendado';
-          message =
-              "O serviço '${planning.serviceType}' foi reagendado. Motivo: $reason";
+          message = "O serviço '$typeName' foi reagendado. Motivo: $reason";
         }
 
         await notifCtrl.add(
@@ -197,7 +236,9 @@ class ServiceProvider extends ChangeNotifier {
       final planning = model.planningId != null
           ? planningCtrl.getById(model.planningId!)
           : null;
-      if (planning != null) {
+      final typeName =
+          planning?.serviceType ?? model.serviceTypeSnapshot ?? 'Serviço';
+      if (planning != null || model.serviceTypeSnapshot != null) {
         for (final tid in model.teamIds) {
           await notifCtrl.add(
             NotificationModel(
@@ -205,8 +246,7 @@ class ServiceProvider extends ChangeNotifier {
               userId: tid,
               managerId: managerId,
               title: 'Serviço Confirmado',
-              message:
-                  'O gerente confirmou a conclusão do serviço ${planning.serviceType}.',
+              message: 'O gerente confirmou a conclusão do serviço $typeName.',
               createdAt: DateTime.now().toIso8601String(),
               type: NotificationType.service,
               relatedId: id,

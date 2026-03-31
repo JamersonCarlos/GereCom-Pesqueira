@@ -101,7 +101,7 @@ class _TeamScreenState extends State<TeamScreen> {
   void _showRegisterSheet(BuildContext context) {
     final usernameCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
-    final passwordCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
     final functionCtrl = TextEditingController();
     UserRole selectedRole = UserRole.EMPLOYEE;
     final secretaryController = TextEditingController();
@@ -142,9 +142,12 @@ class _TeamScreenState extends State<TeamScreen> {
                 ),
                 const SizedBox(height: 10),
                 TextField(
-                  controller: passwordCtrl,
-                  decoration: const InputDecoration(labelText: 'Senha'),
-                  obscureText: true,
+                  controller: emailCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'E-mail',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 10),
                 TextField(
@@ -207,11 +210,11 @@ class _TeamScreenState extends State<TeamScreen> {
                   onPressed: () async {
                     if (usernameCtrl.text.isEmpty ||
                         nameCtrl.text.isEmpty ||
-                        passwordCtrl.text.isEmpty) {
+                        emailCtrl.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text(
-                                'Preencha os campos obrigatórios, incluindo senha.')),
+                                'Preencha os campos obrigatórios: usuário, nome e e-mail.')),
                       );
                       return;
                     }
@@ -220,7 +223,7 @@ class _TeamScreenState extends State<TeamScreen> {
 
                     await auth.register({
                       'username': usernameCtrl.text.trim(),
-                      'password': passwordCtrl.text.trim(),
+                      'email': emailCtrl.text.trim(),
                       'name': nameCtrl.text.trim(),
                       'role': selectedRole.name,
                       'functionRole': functionCtrl.text.trim(),
@@ -229,11 +232,11 @@ class _TeamScreenState extends State<TeamScreen> {
                           : null,
                       'managerId': selectedGestorId ??
                           auth.currentUser?.id ??
-                          '', // Use selectedGestorId se existir, senão user autal
+                          '', // Use selectedGestorId se existir, senão user atual
                     });
 
-                    if (auth.error != null && ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
+                    if (auth.error != null && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             content: Text(auth.error!),
                             backgroundColor: Colors.red),

@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS users (
   status        ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
   `function`    VARCHAR(200),
   manager_id    VARCHAR(36),
+  reset_token           VARCHAR(64),
+  reset_token_expires   DATETIME,
+  must_change_password  TINYINT(1) NOT NULL DEFAULT 0,
   created_at    DATETIME NOT NULL DEFAULT NOW(),
   FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL
 );

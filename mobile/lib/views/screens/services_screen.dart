@@ -1,4 +1,3 @@
-import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -6,6 +5,7 @@ import '../../providers/service_provider.dart';
 import '../../models/models.dart';
 import '../widgets/service_modal.dart';
 import '../widgets/service_card.dart';
+import 'main_scaffold.dart';
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key});
@@ -22,17 +22,21 @@ class _ServicesScreenState extends State<ServicesScreen> {
   }
 
   Future<void> _loadServices() async {
+    final auth = context.read<AuthProvider>();
     final svcProvider = context.read<ServiceProvider>();
-    final managerId = context.read<AuthProvider>().managerId;
-    if (managerId != null) {
-      await svcProvider.loadForManager(managerId);
+    final user = auth.currentUser;
+    if (user == null) return;
+    if (user.role == UserRole.EMPLOYEE) {
+      await svcProvider.loadForEmployee(user.id);
+    } else {
+      final managerId = auth.managerId;
+      if (managerId != null) await svcProvider.loadForManager(managerId);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser!;
-    List<ServiceModel> services = context.watch<ServiceProvider>().services;
 
     bool canCreate = user.role == UserRole.GESTOR ||
         user.role == UserRole.MANAGER ||
@@ -40,7 +44,13 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () => rootScaffoldKey.currentState?.openDrawer(),
+        ),
         title: const Text('Serviços em Andamento'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

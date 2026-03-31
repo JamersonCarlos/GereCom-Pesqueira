@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Endereço base da API.
 /// 10.0.2.2 é o host do emulador Android apontando para localhost da máquina.
-const String _baseUrl = 'http://192.168.0.2:3000/api';
+/// Para dispositivo físico, use o IP local da máquina (ex: 192.168.60.47 para Wi-Fi).
+const String _baseUrl = 'http://10.0.0.29:3000/api';
 const String _tokenKey = 'gerecom_token';
 
 class ApiService {
@@ -98,6 +99,28 @@ class ApiService {
     return res.data as Map<String, dynamic>;
   }
 
+  Future<void> forgotPassword(String email) async {
+    await _dio.post('/auth/forgot-password', data: {'email': email});
+  }
+
+  Future<void> resetPassword(
+      String email, String code, String newPassword) async {
+    await _dio.post('/auth/reset-password', data: {
+      'email': email,
+      'code': code,
+      'newPassword': newPassword,
+    });
+  }
+
+  Future<Map<String, dynamic>> changePassword(
+      String currentPassword, String newPassword) async {
+    final res = await _dio.post('/auth/change-password', data: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+    return res.data as Map<String, dynamic>;
+  }
+
   // ──────────────────────────────────────────────
   // Usuários
   // ──────────────────────────────────────────────
@@ -189,6 +212,13 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getServices(String managerId) async {
     final res =
         await _dio.get('/services', queryParameters: {'managerId': managerId});
+    return List<Map<String, dynamic>>.from(res.data as List);
+  }
+
+  Future<List<Map<String, dynamic>>> getServicesForEmployee(
+      String userId) async {
+    final res =
+        await _dio.get('/services', queryParameters: {'userId': userId});
     return List<Map<String, dynamic>>.from(res.data as List);
   }
 

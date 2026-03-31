@@ -32,16 +32,27 @@ async function _mapService(conn, s) {
   };
 }
 
-// GET /api/services?managerId=xxx
+// GET /api/services?managerId=xxx  OR  ?userId=xxx (for employees)
 router.get('/', auth, async (req, res) => {
-  const { managerId } = req.query;
+  const { managerId, userId } = req.query;
   try {
-    const [rows] = managerId
-      ? await pool.query(
-          'SELECT * FROM services WHERE manager_id = ? ORDER BY created_at DESC',
-          [managerId]
-        )
-      : await pool.query('SELECT * FROM services ORDER BY created_at DESC');
+    let rows;
+    if (userId) {
+      // Returns services where this user is a team member
+      [rows] = await pool.query(
+        'SELECT s.* FROM services s JOIN service_team st ON s.id = st.service_id WHERE st.user_id = ? ORDER BY s.created_at DESC',
+        [userId]
+      );
+    } else if (managerId) {
+      [rows] = await pool.query(
+        'SELECT * FROM services WHERE manager_id = ? ORDER BY created_at DESC',
+        [managerId]
+      );
+    } else {
+      [rows] = await pool.query(
+        'SELECT * FROM services ORDER BY created_at DESC'
+      );
+    }
     const services = await Promise.all(rows.map((s) => _mapService(pool, s)));
     res.json(services);
   } catch (err) {

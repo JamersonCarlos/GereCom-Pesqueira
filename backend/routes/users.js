@@ -35,8 +35,11 @@ router.get('/team/:managerId', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, username, name, email, phone, role, status, \`function\`, manager_id, created_at
-       FROM users WHERE manager_id = ? OR id = ?`,
-      [managerId, managerId]
+       FROM users
+       WHERE id = ?
+          OR manager_id = ?
+          OR manager_id IN (SELECT id FROM users WHERE manager_id = ?)`,
+      [managerId, managerId, managerId]
     );
     res.json(rows.map(_mapUser));
   } catch (err) {

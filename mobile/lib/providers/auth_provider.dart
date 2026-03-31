@@ -129,4 +129,58 @@ class AuthProvider extends ChangeNotifier {
     await _api.deleteUser(id);
     notifyListeners();
   }
+
+  Future<void> forgotPassword(String email) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _api.forgotPassword(email);
+    } on DioException catch (e) {
+      _error = e.error?.toString() ?? 'Erro ao enviar e-mail.';
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> resetPassword(
+      String email, String code, String newPassword) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _api.resetPassword(email, code, newPassword);
+    } on DioException catch (e) {
+      _error = e.error?.toString() ?? 'Erro ao redefinir senha.';
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> changePassword(
+      String currentPassword, String newPassword) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final updated = await _api.changePassword(currentPassword, newPassword);
+      _currentUser = UserModel.fromJson(updated);
+      return true;
+    } on DioException catch (e) {
+      _error = e.error?.toString() ?? 'Erro ao alterar senha.';
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
 }

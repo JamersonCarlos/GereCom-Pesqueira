@@ -31,7 +31,7 @@ class NotificationProvider extends ChangeNotifier {
     try {
       final created = await _api.createNotification(notification.toJson());
       final model = NotificationModel.fromJson(created);
-      if (_notifications.isNotEmpty &&
+      if (_notifications.isEmpty ||
           _notifications.first.userId == model.userId) {
         _notifications.insert(0, model);
         notifyListeners();

@@ -1,10 +1,29 @@
 import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/shift_provider.dart';
 import '../../models/models.dart';
+
+// -- Internal config per day ------------------------------------------------
+
+class _DayConfig {
+  List<String> employeeIds;
+  String startTime;
+  String endTime;
+  String observations;
+
+  _DayConfig({
+    List<String>? employeeIds,
+    this.startTime = '',
+    this.endTime = '',
+    this.observations = '',
+  }) : employeeIds = employeeIds ?? [];
+}
+
+// -- Main screen ------------------------------------------------------------
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -44,13 +63,91 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
   }
 
-  String _userName(String id) {
-    try {
-      return _allUsers
-          .firstWhere((u) => u.id == id)
-          .name; // O prompt exige o nome completo, o atributo "name" já traz a string exata em vez de abreviações.
-    } catch (_) {
-      return id;
+  Map<String, List<ShiftModel>> _groupByMonth(List<ShiftModel> shifts) {
+    final map = <String, List<ShiftModel>>{};
+    for (final s in shifts) {
+      final key = s.date.substring(0, 7);
+      map.putIfAbsent(key, () => []).add(s);
+    }
+    return Map.fromEntries(
+      map.entries.toList()..sort((a, b) => b.key.compareTo(a.key)),
+    );
+  }
+
+  String _monthLabel(String key) {
+    final dt = DateTime.parse('$key-01');
+    final raw = DateFormat("MMMM 'de' yyyy", 'pt_BR').format(dt);
+    return raw[0].toUpperCase() + raw.substring(1);
+  }
+
+  Future<void> _pickMonthAndCreate(BuildContext context) async {
+    int selectedYear = DateTime.now().year;
+    int selectedMonth = DateTime.now().month;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('Selecionar Mês da Escala'),
+          content: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  value: selectedMonth,
+                  decoration: const InputDecoration(labelText: 'Mês'),
+                  items: List.generate(12, (i) => i + 1)
+                      .map((m) => DropdownMenuItem(
+                            value: m,
+                            child: Text(
+                              DateFormat('MMMM', 'pt_BR')
+                                  .format(DateTime(2000, m)),
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setDialog(() => selectedMonth = v!),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  value: selectedYear,
+                  decoration: const InputDecoration(labelText: 'Ano'),
+                  items: List.generate(5, (i) => DateTime.now().year - 1 + i)
+                      .map((y) => DropdownMenuItem(
+                            value: y,
+                            child: Text(y.toString()),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setDialog(() => selectedYear = v!),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Continuar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _MonthBuilderScreen(
+            year: selectedYear,
+            month: selectedMonth,
+            allUsers: _allUsers,
+          ),
+        ),
+      );
     }
   }
 
@@ -64,14 +161,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         user.role == UserRole.GESTOR ||
         user.role == UserRole.GENERAL_MANAGER;
 
-    // IMPLEMENTAÇÃO DE REGRAS DE ACESSO "ESCALA"
-    List<ShiftModel> shifts = [];
-    if (isManager) {
-      shifts = allShifts;
-    } else {
-      // Funcionário vê apenas seus serviços atribuídos (ou secretários etc que possam estar nas escalas)
-      shifts = allShifts.where((s) => s.employeeIds.contains(user.id)).toList();
-    }
+    final shifts = isManager
+        ? allShifts
+        : allShifts.where((s) => s.employeeIds.contains(user.id)).toList();
+
+    final grouped = _groupByMonth(shifts);
 
     return Scaffold(
       appBar: AppBar(
@@ -83,286 +177,502 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         foregroundColor: Colors.white,
       ),
       floatingActionButton: isManager
-          ? FloatingActionButton(
-              onPressed: () => _showAddShiftSheet(context),
-              child: const Icon(Icons.add),
+          ? FloatingActionButton.extended(
+              onPressed: () => _pickMonthAndCreate(context),
+              icon: const Icon(Icons.calendar_month),
+              label: const Text('Nova Escala do Mês'),
             )
           : null,
-      body: shifts.isEmpty
+      body: grouped.isEmpty
           ? const Center(child: Text('Nenhuma escala encontrada.'))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: shifts.length,
+              itemCount: grouped.length,
               itemBuilder: (context, i) {
-                final shift = shifts[i];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                shift.date,
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ),
-                            if (shift.startTime != null ||
-                                shift.endTime != null)
-                              Text(
-                                '${shift.startTime ?? ''}–${shift.endTime ?? ''}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.blueGrey,
-                                ),
-                              ),
-                            if (isManager) ...[
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 20),
-                                onPressed: () =>
-                                    _showEditShiftSheet(context, shift),
-                                tooltip: 'Editar',
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  size: 20,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () =>
-                                    _confirmDelete(context, shift.id),
-                                tooltip: 'Excluir',
-                              ),
-                            ],
-                          ],
-                        ),
-                        if (shift.observations != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              shift.observations!,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Colaboradores:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blueGrey,
-                            fontSize: 13,
-                          ),
-                        ),
-                        ...shift.employeeIds.map(
-                          (id) => Text(
-                            '· ${_userName(id)}',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                final key = grouped.keys.elementAt(i);
+                final monthShifts = grouped[key]!
+                  ..sort((a, b) => a.date.compareTo(b.date));
+                return _MonthCard(
+                  label: _monthLabel(key),
+                  shifts: monthShifts,
+                  allUsers: _allUsers,
+                  isManager: isManager,
                 );
               },
             ),
     );
   }
+}
 
-  Future<void> _confirmDelete(BuildContext context, String shiftId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Excluir Escala'),
-        content: const Text('Deseja realmente excluir esta escala?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true && context.mounted) {
-      await context.read<ShiftProvider>().delete(shiftId);
+// -- Month summary card -----------------------------------------------------
+
+class _MonthCard extends StatelessWidget {
+  final String label;
+  final List<ShiftModel> shifts;
+  final List<UserModel> allUsers;
+  final bool isManager;
+
+  const _MonthCard({
+    required this.label,
+    required this.shifts,
+    required this.allUsers,
+    required this.isManager,
+  });
+
+  String _userName(String id) {
+    try {
+      return allUsers.firstWhere((u) => u.id == id).name;
+    } catch (_) {
+      return id;
     }
   }
 
-  void _showAddShiftSheet(BuildContext context) {
-    _showShiftSheet(context, null);
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        leading: const Icon(Icons.calendar_month_outlined),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(
+          '${shifts.length} dia${shifts.length != 1 ? 's' : ''} escalado${shifts.length != 1 ? 's' : ''}',
+        ),
+        children: shifts.map((shift) {
+          final dt = DateTime.tryParse(shift.date);
+          final dayFmt = dt != null
+              ? DateFormat("dd/MM - EEEE", 'pt_BR').format(dt)
+              : shift.date;
+
+          return ListTile(
+            dense: true,
+            leading: const Icon(Icons.today_outlined, size: 20),
+            title: Text(dayFmt),
+            subtitle: shift.employeeIds.isEmpty
+                ? const Text('Sem colaboradores',
+                    style: TextStyle(color: Colors.grey))
+                : Text(
+                    shift.employeeIds.map(_userName).join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+            trailing: isManager
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (shift.startTime != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Text(
+                            '${shift.startTime}�${shift.endTime ?? ''}',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.blueGrey),
+                          ),
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18, color: Colors.red),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text('Excluir dia'),
+                              content: Text('Remover escala de $dayFmt?'),
+                              actions: [
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Cancelar')),
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('Excluir',
+                                        style: TextStyle(color: Colors.red))),
+                              ],
+                            ),
+                          );
+                          if (confirm == true && context.mounted) {
+                            await context
+                                .read<ShiftProvider>()
+                                .delete(shift.id);
+                          }
+                        },
+                      ),
+                    ],
+                  )
+                : null,
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// -- Monthly builder screen -------------------------------------------------
+
+class _MonthBuilderScreen extends StatefulWidget {
+  final int year;
+  final int month;
+  final List<UserModel> allUsers;
+
+  const _MonthBuilderScreen({
+    required this.year,
+    required this.month,
+    required this.allUsers,
+  });
+
+  @override
+  State<_MonthBuilderScreen> createState() => _MonthBuilderScreenState();
+}
+
+class _MonthBuilderScreenState extends State<_MonthBuilderScreen> {
+  final Map<String, _DayConfig> _configs = {};
+  late final List<DateTime> _days;
+
+  @override
+  void initState() {
+    super.initState();
+    final lastDay = DateTime(widget.year, widget.month + 1, 0).day;
+    _days = List.generate(
+      lastDay,
+      (i) => DateTime(widget.year, widget.month, i + 1),
+    );
   }
 
-  void _showEditShiftSheet(BuildContext context, ShiftModel shift) {
-    _showShiftSheet(context, shift);
-  }
+  String _dateKey(DateTime dt) => DateFormat('yyyy-MM-dd').format(dt);
 
-  void _showShiftSheet(BuildContext context, ShiftModel? existing) {
-    final dateCtrl = TextEditingController(text: existing?.date ?? '');
-    final startCtrl = TextEditingController(text: existing?.startTime ?? '');
-    final endCtrl = TextEditingController(text: existing?.endTime ?? '');
+  Future<void> _editDay(DateTime day) async {
+    final key = _dateKey(day);
+    final existing = _configs[key];
+
+    List<String> selectedIds = List.from(existing?.employeeIds ?? []);
+    final startCtrl =
+        TextEditingController(text: existing?.startTime ?? '00:01');
+    final endCtrl = TextEditingController(text: existing?.endTime ?? '23:59');
     final obsCtrl = TextEditingController(text: existing?.observations ?? '');
-    final selectedIds = List<String>.from(existing?.employeeIds ?? []);
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  existing == null ? 'Nova Escala' : 'Editar Escala',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: dateCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Data (AAAA-MM-DD)',
-                    prefixIcon: Icon(Icons.calendar_today_outlined),
-                  ),
-                  keyboardType: TextInputType.datetime,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: startCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Início (HH:MM)',
-                          prefixIcon: Icon(Icons.access_time),
-                        ),
-                        keyboardType: TextInputType.datetime,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: endCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Fim (HH:MM)',
-                          prefixIcon: Icon(Icons.access_time_filled),
-                        ),
-                        keyboardType: TextInputType.datetime,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: obsCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Observações',
-                    prefixIcon: Icon(Icons.notes_outlined),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Selecionar Colaboradores',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blueGrey,
-                  ),
-                ),
-                ..._allUsers.map(
-                  (u) => CheckboxListTile(
-                    dense: true,
-                    title: Text(u.name),
-                    subtitle: Text(u.roleLabel),
-                    value: selectedIds.contains(u.id),
-                    onChanged: (v) => setModal(() {
-                      if (v == true) {
-                        selectedIds.add(u.id);
-                      } else {
-                        selectedIds.remove(u.id);
-                      }
-                    }),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: FilledButton(
-                    onPressed: () async {
-                      if (dateCtrl.text.isEmpty) return;
-                      final shiftCtrl = context.read<ShiftProvider>();
-                      final managerId = context.read<AuthProvider>().managerId!;
-                      Navigator.pop(ctx);
-                      if (existing == null) {
-                        await shiftCtrl.createShift(
-                          managerId: managerId,
-                          date: dateCtrl.text.trim(),
-                          startTime: startCtrl.text.trim().isEmpty
-                              ? null
-                              : startCtrl.text.trim(),
-                          endTime: endCtrl.text.trim().isEmpty
-                              ? null
-                              : endCtrl.text.trim(),
-                          employeeIds: selectedIds,
-                          observations: obsCtrl.text.trim().isEmpty
-                              ? null
-                              : obsCtrl.text.trim(),
-                        );
-                      } else {
-                        await shiftCtrl.update(
-                          existing.copyWith(
-                            date: dateCtrl.text.trim(),
-                            startTime: startCtrl.text.trim().isEmpty
-                                ? null
-                                : startCtrl.text.trim(),
-                            endTime: endCtrl.text.trim().isEmpty
-                                ? null
-                                : endCtrl.text.trim(),
-                            employeeIds: selectedIds,
-                            observations: obsCtrl.text.trim().isEmpty
-                                ? null
-                                : obsCtrl.text.trim(),
-                          ),
-                        );
-                      }
-                    },
-                    child: Text(existing == null ? 'Criar' : 'Salvar'),
-                  ),
-                ),
-              ],
+        builder: (ctx, setSheet) {
+          final rawTitle =
+              DateFormat("EEEE, dd 'de' MMMM", 'pt_BR').format(day);
+          final dayTitle = rawTitle[0].toUpperCase() + rawTitle.substring(1);
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
             ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dayTitle,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final parts = startCtrl.text.split(':');
+                            final init = parts.length == 2
+                                ? TimeOfDay(
+                                    hour: int.tryParse(parts[0]) ?? 0,
+                                    minute: int.tryParse(parts[1]) ?? 1)
+                                : const TimeOfDay(hour: 0, minute: 1);
+                            final picked = await showTimePicker(
+                                context: ctx, initialTime: init);
+                            if (picked != null) {
+                              setSheet(() => startCtrl.text =
+                                  '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: TextField(
+                              controller: startCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Início',
+                                prefixIcon: Icon(Icons.access_time),
+                                suffixIcon: Icon(Icons.arrow_drop_down),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final parts = endCtrl.text.split(':');
+                            final init = parts.length == 2
+                                ? TimeOfDay(
+                                    hour: int.tryParse(parts[0]) ?? 23,
+                                    minute: int.tryParse(parts[1]) ?? 59)
+                                : const TimeOfDay(hour: 23, minute: 59);
+                            final picked = await showTimePicker(
+                                context: ctx, initialTime: init);
+                            if (picked != null) {
+                              setSheet(() => endCtrl.text =
+                                  '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: TextField(
+                              controller: endCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Fim',
+                                prefixIcon: Icon(Icons.access_time_filled),
+                                suffixIcon: Icon(Icons.arrow_drop_down),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: obsCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Observações',
+                      prefixIcon: Icon(Icons.notes_outlined),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Colaboradores',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, color: Colors.blueGrey),
+                  ),
+                  ...widget.allUsers.map((u) => CheckboxListTile(
+                        dense: true,
+                        title: Text(u.name),
+                        subtitle: Text(u.roleLabel),
+                        value: selectedIds.contains(u.id),
+                        onChanged: (v) => setSheet(() {
+                          if (v == true) {
+                            selectedIds.add(u.id);
+                          } else {
+                            selectedIds.remove(u.id);
+                          }
+                        }),
+                      )),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      if (existing != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              setState(() => _configs.remove(key));
+                              Navigator.pop(ctx);
+                            },
+                            icon: const Icon(Icons.clear, color: Colors.red),
+                            label: const Text('Limpar dia',
+                                style: TextStyle(color: Colors.red)),
+                          ),
+                        ),
+                      if (existing != null) const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () {
+                            setState(() {
+                              _configs[key] = _DayConfig(
+                                employeeIds: List.from(selectedIds),
+                                startTime: startCtrl.text,
+                                endTime: endCtrl.text,
+                                observations: obsCtrl.text,
+                              );
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Confirmar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _saveAll() async {
+    final configuredDays = _configs.entries
+        .where((e) => e.value.employeeIds.isNotEmpty)
+        .toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    if (configuredDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Configure ao menos um dia com colaboradores.')),
+      );
+      return;
+    }
+
+    final shiftCtrl = context.read<ShiftProvider>();
+    final managerId = context.read<AuthProvider>().managerId!;
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      for (final entry in configuredDays) {
+        await shiftCtrl.createShift(
+          managerId: managerId,
+          date: entry.key,
+          startTime:
+              entry.value.startTime.isEmpty ? null : entry.value.startTime,
+          endTime: entry.value.endTime.isEmpty ? null : entry.value.endTime,
+          employeeIds: entry.value.employeeIds,
+          observations: entry.value.observations.isEmpty
+              ? null
+              : entry.value.observations,
+        );
+      }
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        Navigator.pop(context); // back to list
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  '${configuredDays.length} dia${configuredDays.length != 1 ? 's' : ''} salvo${configuredDays.length != 1 ? 's' : ''} com sucesso!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rawLabel = DateFormat("MMMM 'de' yyyy", 'pt_BR')
+        .format(DateTime(widget.year, widget.month));
+    final monthLabel = rawLabel[0].toUpperCase() + rawLabel.substring(1);
+    final configured =
+        _configs.values.where((c) => c.employeeIds.isNotEmpty).length;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Escala � $monthLabel'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: FilledButton.icon(
+            onPressed: _saveAll,
+            icon: const Icon(Icons.save_outlined),
+            label: Text(configured > 0
+                ? 'Salvar ($configured dia${configured != 1 ? 's' : ''})'
+                : 'Salvar Escala'),
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
           ),
         ),
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: _days.length,
+        itemBuilder: (context, i) {
+          final day = _days[i];
+          final key = _dateKey(day);
+          final config = _configs[key];
+          final hasConfig = config != null && config.employeeIds.isNotEmpty;
+          final isWeekend = day.weekday == DateTime.saturday ||
+              day.weekday == DateTime.sunday;
+
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundColor: hasConfig
+                  ? Theme.of(context).colorScheme.primary
+                  : isWeekend
+                      ? Colors.orange.shade100
+                      : Colors.grey.shade200,
+              child: Text(
+                day.day.toString(),
+                style: TextStyle(
+                  color: hasConfig
+                      ? Colors.white
+                      : isWeekend
+                          ? Colors.orange.shade800
+                          : Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            title: Text(
+              DateFormat('EEEE', 'pt_BR').format(day),
+              style: TextStyle(
+                fontWeight: hasConfig ? FontWeight.w600 : FontWeight.normal,
+                color: isWeekend && !hasConfig ? Colors.orange.shade700 : null,
+              ),
+            ),
+            subtitle: hasConfig
+                ? Text(
+                    config.employeeIds.map((id) {
+                      try {
+                        return widget.allUsers
+                            .firstWhere((u) => u.id == id)
+                            .name;
+                      } catch (_) {
+                        return id;
+                      }
+                    }).join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.blueGrey),
+                  )
+                : Text(
+                    'Toque para configurar',
+                    style: TextStyle(color: Colors.grey.shade500),
+                  ),
+            trailing: hasConfig
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (config.startTime.isNotEmpty)
+                        Text(
+                          '${config.startTime}�${config.endTime}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.blueGrey),
+                        ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  )
+                : Icon(Icons.add_circle_outline, color: Colors.grey.shade400),
+            onTap: () => _editDay(day),
+          );
+        },
       ),
     );
   }

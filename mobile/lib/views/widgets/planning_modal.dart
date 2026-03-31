@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/planning_provider.dart';
@@ -26,7 +27,9 @@ class _PlanningModalState extends State<PlanningModal> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 20, right: 20, top: 24,
+        left: 20,
+        right: 20,
+        top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: SingleChildScrollView(
@@ -41,12 +44,14 @@ class _PlanningModalState extends State<PlanningModal> {
             const SizedBox(height: 16),
             TextField(
               controller: _serviceTypeCtrl,
-              decoration: const InputDecoration(labelText: 'Tipo de Serviço (Ex: Poda, Iluminação)'),
+              decoration: const InputDecoration(
+                  labelText: 'Tipo de Serviço (Ex: Poda, Iluminação)'),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _departmentCtrl,
-              decoration: const InputDecoration(labelText: 'Bairro/Departamento'),
+              decoration:
+                  const InputDecoration(labelText: 'Bairro/Departamento'),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -54,9 +59,30 @@ class _PlanningModalState extends State<PlanningModal> {
               decoration: const InputDecoration(labelText: 'Endereço Completo'),
             ),
             const SizedBox(height: 10),
-            TextField(
-              controller: _dateCtrl,
-              decoration: const InputDecoration(labelText: 'Data Desejada (AAAA-MM-DD)', hintText: '2025-05-20'),
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate:
+                      DateTime.tryParse(_dateCtrl.text) ?? DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                );
+                if (picked != null) {
+                  setState(() =>
+                      _dateCtrl.text = DateFormat('yyyy-MM-dd').format(picked));
+                }
+              },
+              child: AbsorbPointer(
+                child: TextField(
+                  controller: _dateCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Data Desejada',
+                    prefixIcon: Icon(Icons.calendar_today_outlined),
+                    suffixIcon: Icon(Icons.arrow_drop_down),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -65,7 +91,10 @@ class _PlanningModalState extends State<PlanningModal> {
                   child: DropdownButtonFormField<UrgencyLevel>(
                     value: _urgency,
                     decoration: const InputDecoration(labelText: 'Urgência'),
-                    items: UrgencyLevel.values.map((u) => DropdownMenuItem(value: u, child: Text(u.name))).toList(),
+                    items: UrgencyLevel.values
+                        .map((u) =>
+                            DropdownMenuItem(value: u, child: Text(u.name)))
+                        .toList(),
                     onChanged: (v) => setState(() => _urgency = v!),
                   ),
                 ),
@@ -74,7 +103,10 @@ class _PlanningModalState extends State<PlanningModal> {
                   child: DropdownButtonFormField<PlanningPeriod>(
                     value: _period,
                     decoration: const InputDecoration(labelText: 'Período'),
-                    items: PlanningPeriod.values.map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
+                    items: PlanningPeriod.values
+                        .map((p) =>
+                            DropdownMenuItem(value: p, child: Text(p.name)))
+                        .toList(),
                     onChanged: (v) => setState(() => _period = v!),
                   ),
                 ),
@@ -86,31 +118,36 @@ class _PlanningModalState extends State<PlanningModal> {
               height: 50,
               child: FilledButton(
                 onPressed: () async {
-                  if (_serviceTypeCtrl.text.isEmpty || _dateCtrl.text.isEmpty || _addressCtrl.text.isEmpty) {
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preencha serviço, data e endereço')));
-                     return;
+                  if (_serviceTypeCtrl.text.isEmpty ||
+                      _dateCtrl.text.isEmpty ||
+                      _addressCtrl.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Preencha serviço, data e endereço')));
+                    return;
                   }
 
                   final auth = context.read<AuthProvider>();
                   final planCtrl = context.read<PlanningProvider>();
                   final notifCtrl = context.read<NotificationProvider>();
-                  
+
                   final user = auth.currentUser!;
                   final managerId = auth.managerId!;
 
                   final plan = PlanningModel(
-                    id: const Uuid().v4(),
-                    managerId: managerId,
-                    secretaryId: user.role == UserRole.SECRETARY ? user.id : user.managerId,
-                    department: _departmentCtrl.text.trim(),
-                    serviceType: _serviceTypeCtrl.text.trim(),
-                    date: _dateCtrl.text.trim(),
-                    location: PlanningLocation(address: _addressCtrl.text.trim()),
-                    urgency: _urgency,
-                    period: _period,
-                    status: ServiceStatus.PENDING,
-                    createdAt: DateTime.now().toIso8601String()
-                  );
+                      id: const Uuid().v4(),
+                      managerId: managerId,
+                      secretaryId: user.role == UserRole.SECRETARY
+                          ? user.id
+                          : user.managerId,
+                      department: _departmentCtrl.text.trim(),
+                      serviceType: _serviceTypeCtrl.text.trim(),
+                      date: _dateCtrl.text.trim(),
+                      location:
+                          PlanningLocation(address: _addressCtrl.text.trim()),
+                      urgency: _urgency,
+                      period: _period,
+                      status: ServiceStatus.PENDING,
+                      createdAt: DateTime.now().toIso8601String());
 
                   await planCtrl.add(plan, notifCtrl);
                   if (context.mounted) Navigator.pop(context);
