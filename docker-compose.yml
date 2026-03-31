@@ -31,28 +31,28 @@ services:
       - sictecnet
 
     labels:
-      - "traefik.enable=true"
+      - 'traefik.enable=true'
 
       # ── Router HTTP (redireciona para HTTPS) ───────────────────────────────
-      - "traefik.http.routers.gerecom-api-http.rule=Host(`${API_HOST}`)"
-      - "traefik.http.routers.gerecom-api-http.entrypoints=web"
-      - "traefik.http.routers.gerecom-api-http.middlewares=redirect-to-https"
+      - 'traefik.http.routers.gerecom-api-http.rule=Host(`${API_HOST}`)'
+      - 'traefik.http.routers.gerecom-api-http.entrypoints=web'
+      - 'traefik.http.routers.gerecom-api-http.middlewares=redirect-to-https'
 
       # ── Router HTTPS ───────────────────────────────────────────────────────
-      - "traefik.http.routers.gerecom-api.rule=Host(`${API_HOST}`)"
-      - "traefik.http.routers.gerecom-api.entrypoints=websecure"
-      - "traefik.http.routers.gerecom-api.tls=true"
-      - "traefik.http.routers.gerecom-api.tls.certresolver=letsencrypt"
+      - 'traefik.http.routers.gerecom-api.rule=Host(`${API_HOST}`)'
+      - 'traefik.http.routers.gerecom-api.entrypoints=websecure'
+      - 'traefik.http.routers.gerecom-api.tls=true'
+      - 'traefik.http.routers.gerecom-api.tls.certresolver=letsencrypt'
 
       # ── Service (porta interna do contêiner) ───────────────────────────────
-      - "traefik.http.services.gerecom-api.loadbalancer.server.port=3000"
+      - 'traefik.http.services.gerecom-api.loadbalancer.server.port=3000'
 
       # ── Middleware: HTTPS redirect (reaproveitável) ────────────────────────
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+      - 'traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https'
+      - 'traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true'
 
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -61,8 +61,8 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
 networks:
   sictecnet:

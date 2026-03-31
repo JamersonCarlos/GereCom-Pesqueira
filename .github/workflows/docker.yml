@@ -3,11 +3,11 @@ name: Build & Push Docker image to GHCR
 on:
   push:
     tags:
-      - 'v*.*.*'   # dispara em tags como v1.0.0, v2.3.1, etc.
+      - 'v*.*.*' # dispara em tags como v1.0.0, v2.3.1, etc.
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}   # owner/repo em minúsculas
+  IMAGE_NAME: ${{ github.repository }} # owner/repo em minúsculas
 
 jobs:
   build-and-push:
@@ -16,7 +16,7 @@ jobs:
 
     permissions:
       contents: read
-      packages: write   # necessário para publicar no GHCR
+      packages: write # necessário para publicar no GHCR
 
     steps:
       # 1. Checkout do código
