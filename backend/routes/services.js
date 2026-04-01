@@ -137,4 +137,28 @@ router.patch('/:id/status', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/services/:id
+router.delete('/:id', auth, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM service_team WHERE service_id = ?', [
+      req.params.id,
+    ]);
+    const [result] = await conn.query('DELETE FROM services WHERE id = ?', [
+      req.params.id,
+    ]);
+    await conn.commit();
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Serviço não encontrado.' });
+    }
+    res.status(204).end();
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
 module.exports = router;

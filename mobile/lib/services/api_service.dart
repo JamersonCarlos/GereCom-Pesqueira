@@ -240,6 +240,10 @@ class ApiService {
     return res.data as Map<String, dynamic>;
   }
 
+  Future<void> deleteService(String id) async {
+    await _dio.delete('/services/$id');
+  }
+
   // ──────────────────────────────────────────────
   // Notificações  —  GET   /api/notifications?userId=
   //                  POST  /api/notifications

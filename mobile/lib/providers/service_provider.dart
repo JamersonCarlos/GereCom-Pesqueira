@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -35,15 +36,36 @@ class ServiceProvider extends ChangeNotifier {
       final typeName = data['serviceTypeSnapshot'] as String? ?? 'Novo Serviço';
       final dateStr = data['dateSnapshot'] as String? ?? '';
       final timeStr = data['timeSnapshot'] as String? ?? '';
+      final location = data['locationSnapshot'] as Map<String, dynamic>?;
+      final addressStr = location?['address'] as String? ?? '';
+
+      String msgDate = '';
+      if (dateStr.isNotEmpty) {
+        try {
+          final dt = DateTime.parse(dateStr);
+          msgDate =
+              '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+        } catch (_) {
+          msgDate = dateStr;
+        }
+      }
+
+      final msgLines = [
+        '📋 Serviço: $typeName',
+        if (msgDate.isNotEmpty)
+          '📅 Data: $msgDate${timeStr.isNotEmpty ? ' às $timeStr' : ''}',
+        if (addressStr.isNotEmpty) '📍 Local: $addressStr',
+        '⚡ Status: Em Andamento',
+      ];
+
       for (final tid in teamIds) {
         await notifCtrl.add(
           NotificationModel(
-            id: service.id,
+            id: const Uuid().v4(),
             userId: tid,
             managerId: managerId,
-            title: 'Novo Serviço Atribuído',
-            message:
-                'Você foi alocado para o serviço: $typeName${dateStr.isNotEmpty ? ' – $dateStr' : ''}${timeStr.isNotEmpty ? ' às $timeStr' : ''}.',
+            title: '🔔 Novo Serviço Designado',
+            message: msgLines.join('\n'),
             createdAt: DateTime.now().toIso8601String(),
             type: NotificationType.service,
             relatedId: service.id,
@@ -81,6 +103,20 @@ class ServiceProvider extends ChangeNotifier {
       _services = data.map(ServiceModel.fromJson).toList();
     } on DioException catch (e) {
       debugPrint('loadForEmployee services error: ${e.message}');
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadAll() async {
+    _loading = true;
+    notifyListeners();
+    try {
+      final data = await _api.getAllServices();
+      _services = data.map(ServiceModel.fromJson).toList();
+    } on DioException catch (e) {
+      debugPrint('loadAll services error: ${e.message}');
     } finally {
       _loading = false;
       notifyListeners();
@@ -305,6 +341,17 @@ class ServiceProvider extends ChangeNotifier {
       notifyListeners();
     } on DioException catch (e) {
       debugPrint('requestReview error: ${e.message}');
+      rethrow;
+    }
+  }
+
+  Future<void> delete(String id) async {
+    try {
+      await _api.deleteService(id);
+      _services.removeWhere((s) => s.id == id);
+      notifyListeners();
+    } on DioException catch (e) {
+      debugPrint('delete service error: ${e.message}');
       rethrow;
     }
   }
