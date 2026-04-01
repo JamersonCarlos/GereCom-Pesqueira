@@ -1,4 +1,4 @@
-import 'main_scaffold.dart';
+﻿import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -45,12 +45,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     try {
       final users = await context.read<AuthProvider>().getAllUsers();
       if (mounted) {
-        setState(() => _allUsers = users
-            .where((u) =>
-                u.role == UserRole.GESTOR ||
-                u.role == UserRole.SECRETARY ||
-                u.role == UserRole.EMPLOYEE)
-            .toList());
+        setState(() => _allUsers = users);
       }
     } catch (e) {
       if (mounted) {
@@ -88,13 +83,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Selecionar Mês da Escala'),
+          title: const Text('Selecionar MÃªs da Escala'),
           content: Row(
             children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
                   value: selectedMonth,
-                  decoration: const InputDecoration(labelText: 'Mês'),
+                  decoration: const InputDecoration(labelText: 'MÃªs'),
                   items: List.generate(12, (i) => i + 1)
                       .map((m) => DropdownMenuItem(
                             value: m,
@@ -161,9 +156,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         user.role == UserRole.GESTOR ||
         user.role == UserRole.GENERAL_MANAGER;
 
+    final isSecretary = user.role == UserRole.SECRETARY;
+
     final shifts = isManager
         ? allShifts
-        : allShifts.where((s) => s.employeeIds.contains(user.id)).toList();
+        : isSecretary
+            ? allShifts
+            : allShifts.where((s) => s.employeeIds.contains(user.id)).toList();
 
     final grouped = _groupByMonth(shifts);
 
@@ -180,7 +179,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ? FloatingActionButton.extended(
               onPressed: () => _pickMonthAndCreate(context),
               icon: const Icon(Icons.calendar_month),
-              label: const Text('Nova Escala do Mês'),
+              label: const Text('Nova Escala do MÃªs'),
             )
           : null,
       body: grouped.isEmpty
@@ -197,6 +196,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   shifts: monthShifts,
                   allUsers: _allUsers,
                   isManager: isManager,
+                  isSecretary: isSecretary,
                 );
               },
             ),
@@ -211,12 +211,14 @@ class _MonthCard extends StatelessWidget {
   final List<ShiftModel> shifts;
   final List<UserModel> allUsers;
   final bool isManager;
+  final bool isSecretary;
 
   const _MonthCard({
     required this.label,
     required this.shifts,
     required this.allUsers,
     required this.isManager,
+    this.isSecretary = false,
   });
 
   String _userName(String id) {
@@ -227,8 +229,86 @@ class _MonthCard extends StatelessWidget {
     }
   }
 
+  String _managerName(String managerId) {
+    try {
+      return allUsers.firstWhere((u) => u.id == managerId).name;
+    } catch (_) {
+      return 'Gestor';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (isSecretary) {
+      final Map<String, List<ShiftModel>> byManager = {};
+      for (final s in shifts) {
+        byManager.putIfAbsent(s.managerId, () => []).add(s);
+      }
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ExpansionTile(
+          leading: const Icon(Icons.calendar_month_outlined),
+          title:
+              Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text(
+            '${shifts.length} dia${shifts.length != 1 ? 's' : ''} escalado${shifts.length != 1 ? 's' : ''}',
+          ),
+          children: byManager.entries.map((entry) {
+            final mName = _managerName(entry.key);
+            final mShifts = entry.value
+              ..sort((a, b) => a.date.compareTo(b.date));
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: Colors.amber.shade50,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline,
+                          size: 16, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Gestor: $mName',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ...mShifts.map((shift) {
+                  final dt = DateTime.tryParse(shift.date);
+                  final dayFmt = dt != null
+                      ? DateFormat("dd/MM - EEEE", 'pt_BR').format(dt)
+                      : shift.date;
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.today_outlined, size: 20),
+                    title: Text(dayFmt),
+                    subtitle: shift.employeeIds.isEmpty
+                        ? const Text('Sem colaboradores',
+                            style: TextStyle(color: Colors.grey))
+                        : Text(
+                            shift.employeeIds.map(_userName).join(', '),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                  );
+                }),
+              ],
+            );
+          }).toList(),
+        ),
+      );
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -264,7 +344,7 @@ class _MonthCard extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(right: 4),
                           child: Text(
-                            '${shift.startTime}�${shift.endTime ?? ''}',
+                            '${shift.startTime} - ${shift.endTime ?? ''}',
                             style: const TextStyle(
                                 fontSize: 12, color: Colors.blueGrey),
                           ),
@@ -403,7 +483,7 @@ class _MonthBuilderScreenState extends State<_MonthBuilderScreen> {
                             child: TextField(
                               controller: startCtrl,
                               decoration: const InputDecoration(
-                                labelText: 'Início',
+                                labelText: 'InÃ­cio',
                                 prefixIcon: Icon(Icons.access_time),
                                 suffixIcon: Icon(Icons.arrow_drop_down),
                               ),
@@ -446,7 +526,7 @@ class _MonthBuilderScreenState extends State<_MonthBuilderScreen> {
                   TextField(
                     controller: obsCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Observações',
+                      labelText: 'ObservaÃ§Ãµes',
                       prefixIcon: Icon(Icons.notes_outlined),
                     ),
                     maxLines: 2,
@@ -581,7 +661,7 @@ class _MonthBuilderScreenState extends State<_MonthBuilderScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Escala � $monthLabel'),
+        title: Text('Escala ï¿½ $monthLabel'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
@@ -662,7 +742,7 @@ class _MonthBuilderScreenState extends State<_MonthBuilderScreen> {
                     children: [
                       if (config.startTime.isNotEmpty)
                         Text(
-                          '${config.startTime}�${config.endTime}',
+                          '${config.startTime}ï¿½${config.endTime}',
                           style: const TextStyle(
                               fontSize: 12, color: Colors.blueGrey),
                         ),

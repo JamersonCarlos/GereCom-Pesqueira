@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/planning_provider.dart';
@@ -38,12 +39,16 @@ class _MainScaffoldState extends State<MainScaffold> {
     final managerId = auth.managerId;
     if (managerId == null) return;
     final userId = auth.currentUser!.id;
+    final isSecretary = auth.currentUser!.role == UserRole.SECRETARY;
 
     await Future.wait([
       context.read<PlanningProvider>().loadForManager(managerId),
       context.read<ServiceProvider>().loadForManager(managerId),
       context.read<NotificationProvider>().loadForUser(userId, managerId),
-      context.read<ShiftProvider>().loadForManager(managerId),
+      if (isSecretary)
+        context.read<ShiftProvider>().loadAll()
+      else
+        context.read<ShiftProvider>().loadForManager(managerId),
     ]);
   }
 

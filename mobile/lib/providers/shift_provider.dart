@@ -29,6 +29,21 @@ class ShiftProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loadAll() async {
+    _loading = true;
+    notifyListeners();
+    try {
+      final data = await _api.getAllShifts();
+      _shifts = data.map(ShiftModel.fromJson).toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+    } on DioException catch (e) {
+      debugPrint('loadAll shifts error: ${e.message}');
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> add(ShiftModel shift) async {
     try {
       final created = await _api.createShift({
