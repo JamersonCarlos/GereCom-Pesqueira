@@ -32,29 +32,19 @@ app.use('/api/shifts', require('./routes/shifts'));
 // Health check
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 
-// Seed usuários padrão ao iniciar
+// Seed usuário padrão ao iniciar
 async function seedUsers() {
-  const defaultUsers = [
-    { username: 'gerente', name: 'Gerente Geral', role: 'GENERAL_MANAGER' },
-    { username: 'gestor', name: 'Gestor de Equipe', role: 'GESTOR' },
-    { username: 'secretaria', name: 'Secretaria Demo', role: 'SECRETARY' },
-    { username: 'funcionario', name: 'Colaborador Demo', role: 'EMPLOYEE' },
-    { username: 'admin', name: 'Gerente (Antigo)', role: 'MANAGER' }
-  ];
-
-  for (const u of defaultUsers) {
-    const [rows] = await pool.query(
-      "SELECT id FROM users WHERE username = ?", [u.username]
+  const [rows] = await pool.query(
+    "SELECT id FROM users WHERE username = ?", ['diego']
+  );
+  if (!rows.length) {
+    const hash = await bcrypt.hash('DiegoSictec@123', 10);
+    await pool.query(
+      `INSERT INTO users (id, username, password, name, role, status)
+       VALUES (?, ?, ?, ?, 'SECRETARY', 'ACTIVE')`,
+      [uuidv4(), 'diego', hash, 'Diego']
     );
-    if (!rows.length) {
-      const hash = await bcrypt.hash('123', 10);
-      await pool.query(
-        `INSERT INTO users (id, username, password, name, role, status)
-         VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
-        [uuidv4(), u.username, hash, u.name, u.role]
-      );
-      console.log(`✅ Usuário padrão criado: ${u.username} / 123 (${u.role})`);
-    }
+    console.log('✅ Usuário padrão criado: diego (SECRETARY)');
   }
 }
 
