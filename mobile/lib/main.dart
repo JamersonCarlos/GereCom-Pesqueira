@@ -19,6 +19,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        Provider<ApiService>.value(value: api),
         ChangeNotifierProvider(create: (_) => AuthProvider(api)),
         ChangeNotifierProvider(create: (_) => PlanningProvider(api)),
         ChangeNotifierProvider(create: (_) => ServiceProvider(api)),

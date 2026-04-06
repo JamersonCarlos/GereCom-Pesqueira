@@ -6,6 +6,7 @@ import '../../providers/notification_provider.dart';
 import '../../providers/planning_provider.dart';
 import '../../config.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'service_modal.dart';
 
 class ServiceCard extends StatelessWidget {
   final ServiceModel service;
@@ -178,13 +179,39 @@ class ServiceCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Chip(
-                      label: Text(
-                        _statusLabel(service.status),
-                        style: const TextStyle(fontSize: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _statusColor(service.status),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      backgroundColor: _statusColor(service.status),
+                      child: Text(
+                        _statusLabel(service.status),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _statusTextColor(service.status),
+                        ),
+                      ),
                     ),
+                    if (_isManager &&
+                        service.status != ServiceStatus.COMPLETED) ...[
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined,
+                            color: Colors.blueGrey, size: 20),
+                        onPressed: () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (_) => ServiceModal(service: service),
+                        ),
+                        tooltip: 'Editar serviço',
+                      ),
+                    ],
                     if (_isManager)
                       IconButton(
                         icon: const Icon(Icons.delete_outline,
@@ -319,15 +346,21 @@ class ServiceCard extends StatelessWidget {
   Color _statusColor(ServiceStatus s) {
     switch (s) {
       case ServiceStatus.IN_PROGRESS:
-        return Colors.blue.shade100;
+        return const Color(0xFF1976D2); // azul sólido
       case ServiceStatus.WAITING_APPROVAL:
-        return Colors.orange.shade100;
+        return const Color(0xFFF57C00); // laranja sólido
       case ServiceStatus.COMPLETED:
-        return Colors.green.shade100;
+        return const Color(0xFF388E3C); // verde sólido
       case ServiceStatus.CANCELLED:
-        return Colors.red.shade100;
+        return const Color(0xFFD32F2F); // vermelho sólido
+      case ServiceStatus.PENDING:
+        return const Color(0xFF757575); // cinza médio
       default:
-        return Colors.grey.shade200;
+        return const Color(0xFF9E9E9E);
     }
+  }
+
+  Color _statusTextColor(ServiceStatus s) {
+    return Colors.white;
   }
 }

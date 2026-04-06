@@ -175,7 +175,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final allShifts = context.watch<ShiftProvider>().shifts;
-    final user = auth.currentUser!;
+    final user = auth.currentUser;
+    if (user == null) return const SizedBox.shrink();
 
     final isManager = user.role == UserRole.MANAGER ||
         user.role == UserRole.GESTOR ||
@@ -198,8 +199,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               icon: const Icon(Icons.menu),
               onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
           title: const Text('Minha Escala'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
         ),
         body: RefreshIndicator(
           onRefresh: _refresh,
@@ -253,12 +252,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 icon: const Icon(Icons.menu),
                 onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
             title: const Text('Escalas'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Colors.white,
             bottom: const TabBar(
-              indicatorColor: Colors.white,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
               tabs: [
                 Tab(icon: Icon(Icons.list_alt_outlined), text: 'Lista'),
                 Tab(
@@ -287,11 +281,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             icon: const Icon(Icons.menu),
             onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Escalas'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
       ),
       floatingActionButton: isManager
           ? FloatingActionButton.extended(
+              heroTag: 'fab_schedule',
               onPressed: () => _pickMonthAndCreate(context),
               icon: const Icon(Icons.calendar_month),
               label: const Text('Nova Escala do Mês'),
@@ -1837,8 +1830,6 @@ class _MonthBuilderScreenState extends State<_MonthBuilderScreen> {
         title: Text(isEditingMonth
             ? 'Editar Escala - $monthLabel'
             : 'Escala - $monthLabel'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(

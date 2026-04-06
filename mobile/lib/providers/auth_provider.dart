@@ -8,6 +8,7 @@ class AuthProvider extends ChangeNotifier {
   final ApiService _api;
   UserModel? _currentUser;
   bool _loading = false;
+  bool _initialized = false;
   String? _error;
 
   AuthProvider(this._api) {
@@ -18,6 +19,7 @@ class AuthProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+  bool get initialized => _initialized;
 
   /// Retorna o managerId efectivo para filtrar dados da API.
   /// Para MANAGER retorna o próprio id; para outros retorna o managerId.
@@ -35,9 +37,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       final userData = await _api.getMe();
       _currentUser = UserModel.fromJson(userData);
-      notifyListeners();
     } catch (_) {
       // Token inválido ou expirado — exibe tela de login
+    } finally {
+      _initialized = true;
+      notifyListeners();
     }
   }
 

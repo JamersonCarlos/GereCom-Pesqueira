@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import 'main_scaffold.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,16 +11,36 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscure = true;
+  late AnimationController _animCtrl;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+    _animCtrl.forward();
+  }
 
   @override
   void dispose() {
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
+    _animCtrl.dispose();
     super.dispose();
   }
 
@@ -27,9 +48,32 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     await auth.login(_usernameCtrl.text.trim(), _passwordCtrl.text);
-    if (mounted && auth.error != null) {
+    if (!mounted) return;
+    if (auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.error!), backgroundColor: Colors.red),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text(auth.error!)),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      // Login bem-sucedido → vai para o app
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 500),
+          pageBuilder: (_, __, ___) => const MainScaffold(),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+        ),
       );
     }
   }
@@ -42,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
     bool obscureNew = true;
     bool obscureConfirm = true;
 
-    // — Passo 1: solicitar e-mail —
     final goToStep2 = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -75,7 +118,6 @@ class _LoginScreenState extends State<LoginScreen> {
             FilledButton(
               onPressed: () async {
                 if (emailCtrl.text.trim().isEmpty) return;
-                setDialog(() {});
                 final auth = context.read<AuthProvider>();
                 await auth.forgotPassword(emailCtrl.text.trim());
                 if (ctx.mounted) {
@@ -99,7 +141,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (goToStep2 != true || !mounted) return;
 
-    // — Passo 2: código + nova senha —
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -160,9 +201,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar')),
             FilledButton(
               onPressed: () async {
                 if (codeCtrl.text.length != 6 ||
@@ -176,8 +216,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (newPassCtrl.text != confirmPassCtrl.text) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content: Text('As senhas não coincidem.'),
-                        backgroundColor: Colors.red),
+                      content: Text('As senhas não coincidem.'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                   return;
                 }
@@ -198,8 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content:
-                            Text('Senha redefinida com sucesso! Faça login.'),
+                        content: Text('Senha redefinida! Faça login.'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -217,85 +257,356 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final primary = Theme.of(context).colorScheme.primary;
+    final topPad = MediaQuery.of(context).padding.top;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    const primary = Color(0xFF2E51A4);
+    const accent = Color(0xFFF1C62F);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'GereCom',
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
-                    ),
-                  ),
-                  const Text(
-                    'Pesqueira',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 40),
-                  TextFormField(
-                    controller: _usernameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Usuário',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Informe o usuário' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    obscureText: _obscure,
-                    decoration: InputDecoration(
-                      labelText: 'Senha',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure ? Icons.visibility : Icons.visibility_off,
-                        ),
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                      ),
-                    ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Informe a senha' : null,
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _forgotPassword,
-                      child: const Text('Esqueceu sua senha?'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton(
-                      onPressed: auth.loading ? null : _submit,
-                      child: auth.loading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Entrar',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                    ),
-                  ),
-                ],
+      // backgroundColor não precisa ser definido — o Stack cobre tudo
+      body: Stack(
+        children: [
+          // ── Fundo degradê (ocupa toda a tela) ─────────────────────
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF1A3478), Color(0xFF2E51A4)],
+                ),
               ),
             ),
           ),
-        ),
+
+          // ── Círculos decorativos ───────────────────────────────────
+          Positioned(
+            top: -60,
+            right: -60,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.05),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 80,
+            right: -20,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withOpacity(0.08),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 200,
+            left: -50,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.04),
+              ),
+            ),
+          ),
+
+          // ── Conteúdo (Column full-height sem SafeArea) ─────────────
+          // O card branco vai até o fundo real; o padding do bottom
+          // safe area é aplicado manualmente dentro do card.
+          Column(
+            children: [
+              // ── Cabeçalho com logo ──────────────────────────────────
+              Expanded(
+                flex: 2,
+                child: FadeTransition(
+                  opacity: _fadeAnim,
+                  child: SlideTransition(
+                    position: _slideAnim,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: topPad + 16,
+                        left: 32,
+                        right: 32,
+                        bottom: 8,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Logo da prefeitura
+                          Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(10),
+                            child: Image.asset(
+                              'assets/pesqueira-logo.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'GereCom',
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: accent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border:
+                                  Border.all(color: accent.withOpacity(0.4)),
+                            ),
+                            child: const Text(
+                              'PESQUEIRA',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: accent,
+                                letterSpacing: 4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Gestão de Comunicação Municipal',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withOpacity(0.6),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Card de login (ancorado no fundo real) ─────────────
+              FadeTransition(
+                opacity: _fadeAnim,
+                child: Container(
+                  // Sem BorderRadius na parte inferior — cola na borda da tela
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(36),
+                      topRight: Radius.circular(12),
+                    ),
+                  ),
+                  padding: EdgeInsets.only(
+                    top: 36,
+                    left: 28,
+                    right: 28,
+                    // Respeita teclado + home indicator
+                    bottom: MediaQuery.of(context).viewInsets.bottom +
+                        bottomPad +
+                        28,
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bem-vindo',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A2B5A),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Faça login para continuar',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // Campo usuário
+                        TextFormField(
+                          controller: _usernameCtrl,
+                          keyboardType: TextInputType.text,
+                          textInputAction: TextInputAction.next,
+                          style: const TextStyle(fontSize: 15),
+                          decoration: InputDecoration(
+                            labelText: 'Usuário',
+                            prefixIcon:
+                                const Icon(Icons.person_outline_rounded),
+                            filled: true,
+                            fillColor: const Color(0xFFF4F6FB),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  const BorderSide(color: primary, width: 1.8),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.red),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                  color: Colors.red, width: 1.8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                              horizontal: 16,
+                            ),
+                          ),
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Informe o usuário'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Campo senha
+                        TextFormField(
+                          controller: _passwordCtrl,
+                          obscureText: _obscure,
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _submit(),
+                          style: const TextStyle(fontSize: 15),
+                          decoration: InputDecoration(
+                            labelText: 'Senha',
+                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                size: 20,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF4F6FB),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  const BorderSide(color: primary, width: 1.8),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.red),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                  color: Colors.red, width: 1.8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                              horizontal: 16,
+                            ),
+                          ),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Informe a senha' : null,
+                        ),
+
+                        // Esqueceu a senha
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _forgotPassword,
+                            style:
+                                TextButton.styleFrom(foregroundColor: primary),
+                            child: const Text(
+                              'Esqueceu sua senha?',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Botão entrar
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: FilledButton(
+                            onPressed: auth.loading ? null : _submit,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: auth.loading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Entrar',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -13,22 +13,21 @@ class NotificationsScreen extends StatelessWidget {
     final notifCtrl = context.watch<NotificationProvider>();
     final auth = context.watch<AuthProvider>();
     final notifications = notifCtrl.notifications;
+    if (auth.currentUser == null) return const SizedBox.shrink();
     final managerId = auth.managerId!;
     final userId = auth.currentUser!.id;
 
     return Scaffold(
-      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => rootScaffoldKey.currentState?.openDrawer()), 
+      appBar: AppBar(
+        leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Notificações'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
         actions: [
           if (notifCtrl.unreadCount > 0)
             TextButton(
               onPressed: () => notifCtrl.markAllAsRead(userId, managerId),
-              child: const Text(
-                'Marcar todas',
-                style: TextStyle(color: Colors.white),
-              ),
+              child: const Text('Marcar todas'),
             ),
         ],
       ),

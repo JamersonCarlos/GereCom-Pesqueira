@@ -137,6 +137,48 @@ router.patch('/:id/status', auth, async (req, res) => {
   }
 });
 
+// PUT /api/services/:id  (edit service details)
+router.put('/:id', auth, async (req, res) => {
+  const b = req.body;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(
+      `UPDATE services SET
+         service_type_snapshot = ?,
+         department_snapshot = ?,
+         scheduled_date = ?,
+         scheduled_time = ?,
+         location_desc = ?
+       WHERE id = ?`,
+      [
+        b.serviceTypeSnapshot,
+        b.departmentSnapshot || null,
+        b.dateSnapshot || null,
+        b.timeSnapshot || null,
+        b.locationSnapshot?.address || null,
+        req.params.id,
+      ]
+    );
+    if (Array.isArray(b.teamIds)) {
+      await conn.query('DELETE FROM service_team WHERE service_id = ?', [req.params.id]);
+      if (b.teamIds.length) {
+        const values = b.teamIds.map((uid) => [req.params.id, uid]);
+        await conn.query('INSERT INTO service_team (service_id, user_id) VALUES ?', [values]);
+      }
+    }
+    await conn.commit();
+    const [rows] = await conn.query('SELECT * FROM services WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Serviço não encontrado.' });
+    res.json(await _mapService(conn, rows[0]));
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
 // DELETE /api/services/:id
 router.delete('/:id', auth, async (req, res) => {
   const conn = await pool.getConnection();

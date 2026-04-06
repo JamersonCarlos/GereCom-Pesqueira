@@ -1,5 +1,6 @@
 import 'main_scaffold.dart';
 import 'package:flutter/material.dart';
+import 'login_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
@@ -37,10 +38,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     await context.read<AuthProvider>().updateProfile(
-      name: _nameCtrl.text,
-      email: _emailCtrl.text,
-      phone: _phoneCtrl.text,
-    );
+          name: _nameCtrl.text,
+          email: _emailCtrl.text,
+          phone: _phoneCtrl.text,
+        );
     if (mounted) {
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -69,19 +70,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (confirm == true && mounted) {
       await context.read<AuthProvider>().logout();
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().currentUser!;
+    final user = context.watch<AuthProvider>().currentUser;
+    if (user == null) return const SizedBox.shrink();
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => rootScaffoldKey.currentState?.openDrawer()), 
+      appBar: AppBar(
+        leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Perfil'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

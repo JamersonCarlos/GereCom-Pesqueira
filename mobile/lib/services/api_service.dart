@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Endereço base da API.
 /// 10.0.2.2 é o host do emulador Android apontando para localhost da máquina.
 /// Para dispositivo físico, use o IP local da máquina (ex: 192.168.60.47 para Wi-Fi).
-const String _baseUrl = 'http://10.0.0.29:3000/api';
+const String _baseUrl = 'http://192.168.0.2:3000/api';
 const String _tokenKey = 'gerecom_token';
 
 class ApiService {
@@ -229,6 +229,14 @@ class ApiService {
 
   Future<Map<String, dynamic>> createService(Map<String, dynamic> data) async {
     final res = await _dio.post('/services', data: data);
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateService(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    final res = await _dio.put('/services/$id', data: body);
     return res.data as Map<String, dynamic>;
   }
 

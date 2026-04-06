@@ -183,6 +183,50 @@ class ServiceProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateService(
+    String id,
+    Map<String, dynamic> data,
+    NotificationProvider notifCtrl,
+    String currentUserId,
+  ) async {
+    _loading = true;
+    notifyListeners();
+    try {
+      final updated = await _api.updateService(id, data);
+      final model = ServiceModel.fromJson(updated);
+      final index = _services.indexWhere((s) => s.id == id);
+      if (index >= 0) {
+        _services[index] = model;
+      }
+
+      // Notify team members about the update
+      final teamIds = model.teamIds;
+      final managerId = model.managerId;
+      final typeName = model.serviceTypeSnapshot ?? 'Serviço';
+
+      for (final tid in teamIds) {
+        await notifCtrl.add(
+          NotificationModel(
+            id: const Uuid().v4(),
+            userId: tid,
+            managerId: managerId,
+            title: '✏️ Serviço Atualizado',
+            message: 'O serviço "$typeName" foi atualizado pelo gestor.',
+            createdAt: DateTime.now().toIso8601String(),
+            type: NotificationType.service,
+            relatedId: id,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      debugPrint('updateService error: ${e.message}');
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> updateStatus(
     String id,
     ServiceStatus status,

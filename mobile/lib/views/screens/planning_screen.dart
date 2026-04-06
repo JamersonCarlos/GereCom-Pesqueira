@@ -17,7 +17,8 @@ class PlanningScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final allPlannings = context.watch<PlanningProvider>().plannings;
     final auth = context.watch<AuthProvider>();
-    final user = auth.currentUser!;
+    final user = auth.currentUser;
+    if (user == null) return const SizedBox.shrink();
 
     final canCreate = user.role == UserRole.GESTOR ||
         user.role == UserRole.SECRETARY ||
@@ -47,11 +48,10 @@ class PlanningScreen extends StatelessWidget {
             icon: const Icon(Icons.menu),
             onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Planejamentos'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton(
+              heroTag: 'fab_planning',
               onPressed: () => showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,

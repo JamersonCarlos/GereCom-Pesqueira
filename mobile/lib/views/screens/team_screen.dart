@@ -284,8 +284,6 @@ class _TeamScreenState extends State<TeamScreen> {
             icon: const Icon(Icons.menu),
             onPressed: () => rootScaffoldKey.currentState?.openDrawer()),
         title: const Text('Equipe'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -296,6 +294,7 @@ class _TeamScreenState extends State<TeamScreen> {
       ),
       floatingActionButton: isManagerOrSecretary
           ? FloatingActionButton(
+              heroTag: 'fab_team',
               onPressed: () => _showRegisterSheet(context),
               child: const Icon(Icons.person_add_outlined),
             )

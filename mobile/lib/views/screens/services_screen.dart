@@ -142,7 +142,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().currentUser!;
+    final user = context.watch<AuthProvider>().currentUser;
+    if (user == null) return const SizedBox.shrink();
     final isSecretary = user.role == UserRole.SECRETARY;
 
     bool canCreate = user.role == UserRole.GESTOR ||
@@ -156,8 +157,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
           onPressed: () => rootScaffoldKey.currentState?.openDrawer(),
         ),
         title: const Text('Serviços em Andamento'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -167,6 +166,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
+              heroTag: 'fab_services',
               onPressed: () {
                 showModalBottomSheet(
                   context: context,
